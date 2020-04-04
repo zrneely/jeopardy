@@ -26,13 +26,13 @@ impl From<Error> for WampError {
     fn from(value: Error) -> WampError {
         match value {
             Error::Wamp(we) => we,
-            Error::LockTimeout => WampError::UnknownError("ontm.lock_timeout".into()),
-            Error::UnknownGame => WampError::UnknownError("ontm.unknown_error".into()),
-            Error::SerdeJson(_) => WampError::UnknownError("ontm.json_error".into()),
-            Error::BadArgument => WampError::UnknownError("ontm.bad_argument".into()),
-            Error::BadAuth => WampError::UnknownError("ontm.bad_auth".into()),
-            Error::IllegalMove => WampError::UnknownError("ontm.illegal_move".into()),
-            Error::GameFull => WampError::UnknownError("ontm.game_is_full".into()),
+            Error::LockTimeout => WampError::UnknownError("jpdy.lock_timeout".into()),
+            Error::UnknownGame => WampError::UnknownError("jpdy.unknown_error".into()),
+            Error::SerdeJson(_) => WampError::UnknownError("jpdy.json_error".into()),
+            Error::BadArgument => WampError::UnknownError("jpdy.bad_argument".into()),
+            Error::BadAuth => WampError::UnknownError("jpdy.bad_auth".into()),
+            Error::IllegalMove => WampError::UnknownError("jpdy.illegal_move".into()),
+            Error::GameFull => WampError::UnknownError("jpdy.game_is_full".into()),
         }
     }
 }

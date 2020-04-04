@@ -1,6 +1,6 @@
 # Jeopardy Online
 
-Serve the content in static/ through a web server of your choice. `python -m SimpleHTTPServer`
+Serve the content in static/ through a web server of your choice. `python -m http.server`
 works for testing and nginx is a good possibility for deployment.
 
 To run the game server, set the following environment variables:

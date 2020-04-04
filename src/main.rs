@@ -30,9 +30,9 @@ lazy_static::lazy_static! {
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(5);
 const GC_INTERVAL: Duration = Duration::from_secs(30 * 60);
 const GC_CLEANUP_THRESHOLD: Duration = Duration::from_secs(60 * 60 * 24);
-const ROUTER_PORT_ENV_NAME: &str = "ONTM_ROUTER_PORT";
-const WAMP_REALM: &str = "ontm";
-const GAME_LOBBY_CHANNEL: &str = "ontm.chan.lobby";
+const ROUTER_PORT_ENV_NAME: &str = "JPDY_ROUTER_PORT";
+const WAMP_REALM: &str = "jpdy";
+const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
 
 /// A game's ID.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -272,12 +272,12 @@ async fn main() {
     info!("Joined realm {}", WAMP_REALM);
 
     rpc_register!(client, {
-        "ontm.new_game" => server::make_game,
-        "ontm.move" => server::make_move,
-        "ontm.join" => server::join_game,
-        "ontm.open_games" => server::get_open_games,
-        "ontm.game_state" => server::get_game_state,
-        "ontm.resign" => server::resign_game,
+        "jpdy.new_game" => server::make_game,
+        "jpdy.move" => server::make_move,
+        "jpdy.join" => server::join_game,
+        "jpdy.open_games" => server::get_open_games,
+        "jpdy.game_state" => server::get_game_state,
+        "jpdy.resign" => server::resign_game,
     })
     .await
     .into_iter()
