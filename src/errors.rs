@@ -9,8 +9,11 @@ pub(crate) enum Error {
     SerdeJson(serde_json::Error),
     BadArgument,
     BadAuth,
-    IllegalMove,
-    GameFull,
+    NoLoadedBoard,
+    InvalidStateForOperation,
+    InvalidSquareStateTransition,
+    DailyDoubleWagerTooSmall,
+    NoSuchPlayer,
 }
 impl From<wamp_async::WampError> for Error {
     fn from(value: WampError) -> Self {
@@ -24,15 +27,23 @@ impl From<serde_json::Error> for Error {
 }
 impl From<Error> for WampError {
     fn from(value: Error) -> WampError {
-        match value {
-            Error::Wamp(we) => we,
-            Error::LockTimeout => WampError::UnknownError("jpdy.lock_timeout".into()),
-            Error::UnknownGame => WampError::UnknownError("jpdy.unknown_error".into()),
-            Error::SerdeJson(_) => WampError::UnknownError("jpdy.json_error".into()),
-            Error::BadArgument => WampError::UnknownError("jpdy.bad_argument".into()),
-            Error::BadAuth => WampError::UnknownError("jpdy.bad_auth".into()),
-            Error::IllegalMove => WampError::UnknownError("jpdy.illegal_move".into()),
-            Error::GameFull => WampError::UnknownError("jpdy.game_is_full".into()),
-        }
+        use Error::*;
+
+        WampError::UnknownError(
+            match value {
+                Wamp(we) => return we,
+                LockTimeout => "jpdy.lock_timeout",
+                UnknownGame => "jpdy.unknown_error",
+                SerdeJson(_) => "jpdy.json_error",
+                BadArgument => "jpdy.bad_argument",
+                BadAuth => "jpdy.bad_auth",
+                NoLoadedBoard => "jpdy.no_board",
+                InvalidStateForOperation => "jpdy.invalid_game_state",
+                InvalidSquareStateTransition => "jpdy.invalid_square_state_transition",
+                DailyDoubleWagerTooSmall => "jpdy.wager_too_small",
+                NoSuchPlayer => "jpdy.no_such_player",
+            }
+            .into(),
+        )
     }
 }

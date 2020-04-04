@@ -1,360 +1,285 @@
-use std::{default::Default, fmt, mem};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+};
 
 use log::*;
-use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-macro_rules! card {
-    ($name:expr, $kanji:expr, [($r1:expr,$c1:expr),($r2:expr,$c2:expr),($r3:expr,$c3:expr),($r4:expr,$c4:expr)]) => {
-        Card {
-            name: $name,
-            kanji: $kanji,
-            moves: CardMovement::Four([
-                Movement {
-                    rows: $r1,
-                    cols: $c1,
-                },
-                Movement {
-                    rows: $r2,
-                    cols: $c2,
-                },
-                Movement {
-                    rows: $r3,
-                    cols: $c3,
-                },
-                Movement {
-                    rows: $r4,
-                    cols: $c4,
-                },
-            ]),
-        }
-    };
+use crate::{errors::Error, AuthToken};
 
-    ($name:expr, $kanji:expr, [($r1:expr,$c1:expr),($r2:expr,$c2:expr),($r3:expr,$c3:expr)]) => {
-        Card {
-            name: $name,
-            kanji: $kanji,
-            moves: CardMovement::Three([
-                Movement {
-                    rows: $r1,
-                    cols: $c1,
-                },
-                Movement {
-                    rows: $r2,
-                    cols: $c2,
-                },
-                Movement {
-                    rows: $r3,
-                    cols: $c3,
-                },
-            ]),
-        }
-    };
+const MIN_DAILY_DOUBLE_WAGER: u64 = 5;
 
-    ($name:expr, $kanji:expr, [($r1:expr,$c1:expr),($r2:expr,$c2:expr)]) => {
-        Card {
-            name: $name,
-            kanji: $kanji,
-            moves: CardMovement::Two([
-                Movement {
-                    rows: $r1,
-                    cols: $c1,
-                },
-                Movement {
-                    rows: $r2,
-                    cols: $c2,
-                },
-            ]),
-        }
-    };
-}
-
-// Moves are rows up, columns right. Origin is bottom left square (white's leftmost pawn).
-const CARDS: [Card; 16] = [
-    card!("Dragon", "竜", [(1, -2), (1, 2), (-1, -1), (-1, 1)]),
-    card!("Tiger", "虎", [(2, 0), (-1, 0)]),
-    card!("Frog", "蛙", [(0, -2), (1, -1), (-1, 1)]),
-    card!("Rabbit", "兔", [(-1, -1), (1, 1), (0, 2)]),
-    card!("Crab", "蟹", [(0, -2), (0, 2), (1, 0)]),
-    card!("Elephant", "象", [(1, -1), (0, -1), (1, 1), (0, 1)]),
-    card!("Goose", "鵞鳥", [(1, -1), (0, -1), (0, 1), (-1, 1)]),
-    card!("Rooster", "雄鶏", [(0, -1), (-1, -1), (0, 1), (1, 1)]),
-    card!("Monkey", "猿", [(1, -1), (-1, -1), (1, 1), (-1, 1)]),
-    card!("Mantis", "蟷螂", [(1, -1), (-1, 0), (1, 1)]),
-    card!("Horse", "馬", [(0, -1), (1, 0), (-1, 0)]),
-    card!("Ox", "牛", [(1, 0), (-1, 0), (0, 1)]),
-    card!("Crane", "鶴", [(-1, -1), (1, 0), (-1, 1)]),
-    card!("Boar", "猪", [(0, -1), (1, 0), (0, 1)]),
-    card!("Eel", "鰻", [(1, -1), (-1, -1), (0, 1)]),
-    card!("Cobra", "眼鏡蛇", [(0, -1), (1, 1), (-1, 1)]),
-];
-
-#[derive(Debug, Clone, Serialize)]
-struct Movement {
-    rows: i8,
-    cols: i8,
-}
-
-// Only send the name of the card; the client can figure it out from there.
-#[derive(Debug, Clone, Serialize)]
-struct Card {
-    name: &'static str,
-    #[serde(skip_serializing)]
-    kanji: &'static str,
-    #[serde(skip_serializing)]
-    moves: CardMovement,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-enum CardMovement {
-    Two([Movement; 2]),
-    Three([Movement; 3]),
-    Four([Movement; 4]),
-}
-impl CardMovement {
-    fn get(&self, idx: u8) -> Option<Movement> {
-        use self::CardMovement::*;
-
-        Some(match (self, idx) {
-            (&Two(ref moves), 0) => moves[0].clone(),
-            (&Two(ref moves), 1) => moves[1].clone(),
-            (&Three(ref moves), 0) => moves[0].clone(),
-            (&Three(ref moves), 1) => moves[1].clone(),
-            (&Three(ref moves), 2) => moves[2].clone(),
-            (&Four(ref moves), 0) => moves[0].clone(),
-            (&Four(ref moves), 1) => moves[1].clone(),
-            (&Four(ref moves), 2) => moves[2].clone(),
-            (&Four(ref moves), 3) => moves[3].clone(),
-            _ => return None,
-        })
-    }
-}
-
-#[derive(Debug, Clone, Copy, Deserialize)]
-pub enum CardSlot {
-    Left,
-    Right,
-}
-
-#[derive(Debug, Serialize)]
-struct Cards {
-    black: [Card; 2],
-    white: [Card; 2],
-    suspended: Card,
-}
-impl Cards {
-    /// Gets the row, col change.
-    fn get_move(&self, who: Player, which: CardSlot, idx: u8) -> Option<Movement> {
-        match (who, which) {
-            (Player::White, CardSlot::Left) => &self.white[0],
-            (Player::White, CardSlot::Right) => &self.white[1],
-            (Player::Black, CardSlot::Left) => &self.black[0],
-            (Player::Black, CardSlot::Right) => &self.black[1],
-        }
-        .moves
-        .get(idx)
-    }
-
-    // Returns the name of the card which was played.
-    fn play(&mut self, who: Player, which: CardSlot) -> &str {
-        mem::swap(
-            &mut self.suspended,
-            match (who, which) {
-                (Player::White, CardSlot::Left) => &mut self.white[0],
-                (Player::White, CardSlot::Right) => &mut self.white[1],
-                (Player::Black, CardSlot::Left) => &mut self.black[0],
-                (Player::Black, CardSlot::Right) => &mut self.black[1],
-            },
-        );
-        &self.suspended.name
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize)]
-enum Piece {
-    Empty,
-    BlackPawn,
-    BlackKing,
-    WhitePawn,
-    WhiteKing,
-}
-impl Piece {
-    fn get_player(self) -> Option<Player> {
-        use self::Piece::*;
-
-        match self {
-            Empty => None,
-            BlackPawn | BlackKing => Some(Player::Black),
-            WhitePawn | WhiteKing => Some(Player::White),
-        }
-    }
-}
+const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
+    categories: [
+        DUMMY_CATEGORY,
+        DUMMY_CATEGORY,
+        DUMMY_CATEGORY,
+        DUMMY_CATEGORY,
+        DUMMY_CATEGORY,
+    ],
+    daily_doubles: HashSet::new(), // thank you for being const
+    value_multiplier: 0,
+};
+const DUMMY_CATEGORY: Category = Category {
+    title: Cow::Borrowed(""),
+    squares: [
+        DUMMY_SQUARE,
+        DUMMY_SQUARE,
+        DUMMY_SQUARE,
+        DUMMY_SQUARE,
+        DUMMY_SQUARE,
+    ],
+};
+const DUMMY_SQUARE: Square = Square {
+    clue: Clue::Blank,
+    answer: Cow::Borrowed(""),
+    state: SquareState::Finished,
+};
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub enum Player {
-    Black,
-    White,
-}
-impl Player {
-    pub fn opponent(self) -> Player {
-        match self {
-            Player::Black => Player::White,
-            Player::White => Player::Black,
-        }
-    }
-}
-impl fmt::Display for Player {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            fmt,
-            "{}",
-            match *self {
-                Player::Black => "Black",
-                Player::White => "White",
-            }
-        )
-    }
+pub enum PlayerType {
+    Moderator,
+    Normal,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Game {
-    board: [[Piece; 5]; 5],
-    turn_count: u32,
-    cards: Cards,
-    next_turn: Player,
-    #[serde(skip_serializing)]
-    resigned: Option<Player>,
+#[derive(Debug, Serialize, Hash, Eq, PartialEq)]
+pub struct Location {
+    category: usize, // 0 is left, 4 is right
+    row: usize,      // 0 is top, 4 is bottom
 }
-impl Default for Game {
-    fn default() -> Self {
-        use self::Piece::*;
-
-        Game {
-            board: [
-                [WhitePawn, WhitePawn, WhiteKing, WhitePawn, WhitePawn],
-                [Empty; 5],
-                [Empty; 5],
-                [Empty; 5],
-                [BlackPawn, BlackPawn, BlackKing, BlackPawn, BlackPawn],
-            ],
-            turn_count: 0,
-            cards: {
-                let mut card_list = CARDS.clone().to_vec();
-                card_list.shuffle(&mut thread_rng());
-                Cards {
-                    black: [card_list.pop().unwrap(), card_list.pop().unwrap()],
-                    white: [card_list.pop().unwrap(), card_list.pop().unwrap()],
-                    suspended: card_list.pop().unwrap(),
-                }
-            },
-            next_turn: Player::White,
-            resigned: None,
-        }
-    }
-}
-impl Game {
-    /// Gets the winner of the game.
-    #[allow(clippy::if_same_then_else)]
-    pub fn get_winner(&self) -> Option<Player> {
-        if self.board[0][2] == Piece::BlackKing {
-            Some(Player::Black)
-        } else if self.board[4][2] == Piece::WhiteKing {
-            Some(Player::White)
-        } else if self
-            .board
-            .iter()
-            .all(|row| row.iter().all(|&piece| piece != Piece::BlackKing))
-        {
-            Some(Player::White)
-        } else if self
-            .board
-            .iter()
-            .all(|row| row.iter().all(|&piece| piece != Piece::WhiteKing))
-        {
-            Some(Player::Black)
-        } else if let Some(p) = self.resigned {
-            Some(p.opponent())
+impl Location {
+    fn new(category: usize, row: usize) -> Option<Self> {
+        if category < 5 && row < 5 {
+            Some(Location { category, row })
         } else {
             None
         }
     }
+}
 
-    /// Resigns the game for one player.
-    pub fn resign(&mut self, who: Player) {
-        self.resigned = Some(who);
+#[derive(Debug, Serialize)]
+struct JeopardyBoard {
+    categories: [Category; 5],
+    daily_doubles: HashSet<Location>,
+    value_multiplier: u64, // base values are "1, 2, 3, 4, 5" going down a column
+}
+impl JeopardyBoard {
+    fn get_square(&self, location: &Location) -> &Square {
+        &self.categories[location.category].squares[location.row]
     }
 
-    /// Returns true if the play was valid (and the game is updated), or false if it was invalid
-    /// and the game state is unchanged. This requires mutable access for its entire duration to
-    /// ensure exclusive access the entire time, so that no state change can happen between the
-    /// move being validated and the move occurring.
-    pub fn play_card(
-        &mut self,
-        row: u8,
-        col: u8,
-        who: Player,
-        which: CardSlot,
-        idx: u8,
-    ) -> Option<String> {
-        // First, ensure the square requested is on the board.
-        if !Self::is_on_board(row as i8, col as i8) {
-            debug!(
-                "{:?} attempted to move r:{}, c:{} which is off board",
-                who, row, col,
-            );
-            return None;
-        }
+    fn get_square_mut(&mut self, location: &Location) -> &mut Square {
+        &mut self.categories[location.category].squares[location.row]
+    }
 
-        // Ensure the player has a piece on the selected square.
-        if self.board[row as usize][col as usize].get_player() != Some(who) {
-            debug!(
-                "{:?} attempted to move r:{}, c:{} which does not belong to them",
-                who, row, col,
-            );
-            return None;
-        }
+    fn get_category_title(&self, category: usize) -> &str {
+        &self.categories[category].title
+    }
+}
 
-        // Ensure it's the correct player's turn.
-        if self.next_turn != who {
-            debug!("{:?} attempted to move when it wasn't their turn", who);
-            return None;
-        }
+#[derive(Debug, Serialize)]
+struct Category {
+    title: Cow<'static, str>,
+    squares: [Square; 5],
+}
 
-        // Ensure the target of the move is on the board.
-        let (new_row, new_col) = if let Some(movement) = self.cards.get_move(who, which, idx) {
-            let new_row = match who {
-                Player::White => (row as i8) + movement.rows,
-                Player::Black => (row as i8) - movement.rows,
-            };
-            let new_col = match who {
-                Player::White => (col as i8) + movement.cols,
-                Player::Black => (col as i8) - movement.cols,
-            };
-            if Self::is_on_board(new_row, new_col) {
-                (new_row, new_col)
-            } else {
-                debug!(
-                    "{:?} attempted to move r:{}, c:{} to r:{}, c:{} which is off board",
-                    who, row, col, new_row, new_col,
-                );
-                return None;
-            }
-        } else {
-            debug!("{:?} attempted to do a move which doesn't exist", who);
-            return None;
+#[derive(Debug, Serialize)]
+struct Square {
+    clue: Clue,
+    answer: Cow<'static, str>,
+    state: SquareState,
+}
+impl Square {
+    fn flip(&mut self) -> Result<(), Error> {
+        self.state = match self.state {
+            SquareState::Normal => SquareState::Flipped,
+            _ => return Err(Error::InvalidSquareStateTransition),
         };
 
-        // All good; play the card and move the piece.
-        let card_name = self.cards.play(who, which);
-        self.board[new_row as usize][new_col as usize] = self.board[row as usize][col as usize];
-        self.board[row as usize][col as usize] = Piece::Empty;
-        self.next_turn = who.opponent();
-
-        Some(format!("{} makes a move using the {}", who, card_name))
+        Ok(())
     }
 
-    fn is_on_board(row: i8, col: i8) -> bool {
-        (row >= 0) && (row < 5) && (col >= 0) && (col < 5)
+    fn finish(&mut self) -> Result<(), Error> {
+        self.state = match self.state {
+            SquareState::Flipped => SquareState::Finished,
+            _ => return Err(Error::InvalidSquareStateTransition),
+        };
+
+        Ok(())
+    }
+
+    fn set_flip_state(&mut self, state: SquareState) {
+        self.state = state;
+    }
+}
+
+#[derive(Debug, Serialize)]
+enum SquareState {
+    Normal,
+    Flipped,
+    Finished,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type")]
+pub enum Clue {
+    Text(String),
+    Image(String),
+    Video(String),
+    Audio(String),
+    Blank,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Player {
+    name: String,
+    score: i64,
+
+    #[serde(skip)]
+    auth: AuthToken,
+}
+impl Player {
+    pub fn new(name: String) -> Self {
+        Player {
+            name,
+            score: 0,
+            auth: AuthToken(Uuid::new_v4()),
+        }
+    }
+
+    pub fn get_auth(&self) -> AuthToken {
+        self.auth.clone()
+    }
+
+    pub fn check_auth(&self, auth: &AuthToken) -> bool {
+        self.auth == *auth
+    }
+}
+
+#[derive(Debug, Serialize)]
+enum GameState {
+    NoBoard,
+    WaitingForSquareSelection {
+        board: JeopardyBoard,
+        controller: Uuid, // ID of whoever's controlling the board
+    },
+    WaitingForDailyDoubleWager {
+        board: JeopardyBoard,
+        location: Location,
+        controller: Uuid, // ID of whoever's making the wager
+    },
+    WaitingForBuzzer {
+        board: JeopardyBoard,
+        location: Location,
+    },
+    WaitingForAnswer {
+        board: JeopardyBoard,
+        location: Location,
+        active_player: Uuid, // ID of whoever won the buzzer race or is doing the daily double
+        value: u64,          // value added to score if correct, or subtracted if wrong
+    },
+}
+
+#[derive(Debug, Serialize)]
+pub struct Game {
+    moderator: Player,
+    players: HashMap<Uuid, Player>,
+    state: GameState,
+}
+impl Game {
+    pub fn new(moderator: Player) -> Self {
+        Game {
+            moderator,
+            players: HashMap::new(),
+            state: GameState::NoBoard,
+        }
+    }
+
+    pub fn add_player(&mut self, id: Uuid, player: Player) -> Result<(), Error> {
+        if matches!(self.state, GameState::NoBoard) {
+            info!("Adding player: {} => {}", id, player.name);
+            self.players.insert(id, player);
+            Ok(())
+        } else {
+            Err(Error::InvalidStateForOperation)
+        }
+    }
+
+    pub fn load_new_board(&mut self, multiplier: u64) -> Result<(), Error> {
+        unimplemented!()
+    }
+
+    pub fn select_square(&mut self, location: Location) -> Result<(), Error> {
+        let new_state = match self.state {
+            GameState::WaitingForSquareSelection {
+                ref mut board,
+                controller,
+            } => {
+                board.get_square_mut(&location).flip()?;
+
+                // Move to new state
+                let mut new_board = DUMMY_BOARD;
+                std::mem::swap(&mut new_board, board);
+                if new_board.daily_doubles.contains(&location) {
+                    GameState::WaitingForDailyDoubleWager {
+                        board: new_board,
+                        location,
+                        controller,
+                    }
+                } else {
+                    GameState::WaitingForBuzzer {
+                        board: new_board,
+                        location,
+                    }
+                }
+            }
+
+            _ => return Err(Error::InvalidStateForOperation),
+        };
+        self.state = new_state;
+        Ok(())
+    }
+
+    pub fn submit_wager(&mut self, wager: u64) -> Result<(), Error> {
+        let new_state = match self.state {
+            GameState::WaitingForDailyDoubleWager {
+                ref mut board,
+                controller,
+                location,
+            } => {
+                // Move to new state
+                if wager < MIN_DAILY_DOUBLE_WAGER {
+                    return Err(Error::DailyDoubleWagerTooSmall);
+                }
+
+                let mut new_board = DUMMY_BOARD;
+                std::mem::swap(&mut new_board, board);
+                GameState::WaitingForAnswer {
+                    board: new_board,
+                    location,
+                    active_player: controller,
+                    value: wager,
+                }
+            }
+
+            _ => return Err(Error::InvalidStateForOperation),
+        };
+        self.state = new_state;
+        Ok(())
+    }
+
+    pub fn buzz(&mut self, id: Uuid) -> Result<(), Error> {
+        let new_state = match self.state {
+            GameState::WaitingForBuzzer { .. } => {
+                if !self.players.contains_key(&id) {
+                    return Err(Error::NoSuchPlayer);
+                }
+            }
+        };
+
+        self.state = new_state;
+        Ok(())
     }
 }
