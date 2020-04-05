@@ -6,8 +6,10 @@ edition = "2018"
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+csv = "1"
 env_logger = "0.7"
 futures = "0.3"
+itertools = "0.9"
 lazy_static = "1"
 log = "0.4"
 once_cell = "1"

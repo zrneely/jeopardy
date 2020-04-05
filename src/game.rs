@@ -24,6 +24,7 @@ const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
 };
 const DUMMY_CATEGORY: Category = Category {
     title: Cow::Borrowed("dummy"),
+    commentary: None,
     squares: [
         DUMMY_SQUARE,
         DUMMY_SQUARE,
@@ -33,7 +34,10 @@ const DUMMY_CATEGORY: Category = Category {
     ],
 };
 const DUMMY_SQUARE: Square = Square {
-    clue: Clue::Blank,
+    clue: Clue {
+        text: None,
+        link: None,
+    },
     answer: Cow::Borrowed("dummy"),
     state: SquareState::Finished,
 };
@@ -82,13 +86,14 @@ impl JeopardyBoard {
 }
 
 #[derive(Debug, Serialize)]
-struct Category {
-    title: Cow<'static, str>,
-    squares: [Square; 5],
+pub struct Category {
+    pub title: Cow<'static, str>,
+    pub commentary: Option<String>,
+    pub squares: [Square; 5],
 }
 
 #[derive(Debug, Serialize)]
-struct Square {
+pub struct Square {
     clue: Clue,
     state: SquareState,
 
@@ -96,6 +101,14 @@ struct Square {
     answer: Cow<'static, str>,
 }
 impl Square {
+    pub fn new(clue: Clue, answer: String) -> Self {
+        Square {
+            clue,
+            answer: Cow::Owned(answer),
+            state: SquareState::Normal,
+        }
+    }
+
     fn flip(&mut self) -> Result<(), Error> {
         self.state = match self.state {
             SquareState::Normal => SquareState::Flipped,
@@ -127,13 +140,9 @@ enum SquareState {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(tag = "type")]
-pub enum Clue {
-    Text(String),
-    Image(String),
-    Video(String),
-    Audio(String),
-    Blank,
+pub struct Clue {
+    pub text: Option<String>,
+    pub link: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]

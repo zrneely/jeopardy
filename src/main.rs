@@ -11,6 +11,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 use wamp_async::WampDict;
 
+mod data;
 mod errors;
 mod game;
 #[macro_use]
@@ -25,6 +26,8 @@ lazy_static::lazy_static! {
     };
 
     static ref MSG_QUEUE: OnceCell<mpsc::UnboundedSender<Message>> = OnceCell::new();
+
+    static ref CATEGORIES: OnceCell<Vec<game::Category>> = OnceCell::new();
 }
 
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(5);
@@ -33,6 +36,7 @@ const GC_CLEANUP_THRESHOLD: Duration = Duration::from_secs(60 * 60 * 24);
 const ROUTER_PORT_ENV_NAME: &str = "JPDY_ROUTER_PORT";
 const WAMP_REALM: &str = "jpdy";
 const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
+const DATABASE_PATH: &str = "jeo_data_utf8.csv";
 
 /// A game's ID.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -207,6 +211,24 @@ struct ChatMessage {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+
+    let mut categories = Vec::new();
+    let time_taken = chrono::Duration::span(|| categories = data::load(DATABASE_PATH).unwrap());
+    trace!(
+        "Loaded {} categories in {} ms",
+        categories.len(),
+        time_taken.num_milliseconds()
+    );
+    CATEGORIES.set(categories).unwrap();
+
+    // TODO: remove, just for testing
+    use rand::seq::SliceRandom;
+    for _ in 0..5 {
+        let category = &CATEGORIES.get().unwrap()[..]
+            .choose(&mut rand::thread_rng())
+            .unwrap();
+        trace!("Random category: {:#?}", category);
+    }
 
     // Create our MPSC pair
     let (sender, mut receiver) = mpsc::unbounded_channel();
