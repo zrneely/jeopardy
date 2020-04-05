@@ -15,6 +15,7 @@ pub(crate) enum Error {
     NoSuchPlayer,
     NotAllowed,
     InvalidSquare,
+    TooManyDailyDoubles,
 }
 impl From<wamp_async::WampError> for Error {
     fn from(value: WampError) -> Self {
@@ -44,6 +45,7 @@ impl From<Error> for WampError {
                 NoSuchPlayer => "jpdy.no_such_player",
                 NotAllowed => "jpdy.not_allowed",
                 InvalidSquare => "jpdy.invalid_square",
+                TooManyDailyDoubles => "jpdy.too_many_daily_doubles",
             }
             .into(),
         )

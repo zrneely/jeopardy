@@ -265,6 +265,46 @@ pub async fn answer(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKw
     Ok((None, None))
 }
 
+/// Moderator only: change to a fresh board
+pub async fn new_board(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("new_board");
+    wamp_kwargs!(kwargs, {
+        game_id: GameId,
+        player_id: PlayerId,
+        auth: AuthToken,
+        multiplier: i64,
+        daily_doubles: usize,
+    });
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.load_new_board(multiplier, daily_doubles)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
 /// Player only: a player gave an answer (outside of the game)
 pub async fn buzz(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKwArgs), WampError> {
     info!("buzz");

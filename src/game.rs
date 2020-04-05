@@ -2,13 +2,18 @@ use std::{borrow::Cow, collections::HashMap, convert::TryInto};
 
 use chrono::{DateTime, Utc};
 use log::*;
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::{errors::Error, AuthToken, PlayerId};
+use crate::{errors::Error, AuthToken, PlayerId, CATEGORIES};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
 const MIN_MAX_DAILY_DOUBLE_WAGER: i64 = 1000;
+
+const NUM_CATEGORIES: usize = 6;
+const CATEGORY_HEIGHT: usize = 5;
+const NUM_SQUARES: usize = NUM_CATEGORIES * CATEGORY_HEIGHT;
 
 const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
     categories: [
@@ -42,6 +47,9 @@ const DUMMY_SQUARE: Square = Square {
     state: SquareState::Finished,
 };
 
+// TODO: actual values
+const DAILY_DOUBLE_WEIGHTS: [f64; CATEGORY_HEIGHT] = [0.01, 0.01, 0.01, 0.01, 0.99];
+
 #[derive(Debug, Clone, Copy, Serialize, Hash, Eq, PartialEq)]
 pub struct Location {
     category: usize, // 0 is left, 4 is right
@@ -49,19 +57,73 @@ pub struct Location {
 }
 impl Location {
     pub fn new(category: usize, row: usize) -> Option<Self> {
-        if category < 5 && row < 5 {
+        if category < NUM_CATEGORIES && row < CATEGORY_HEIGHT {
             Some(Location { category, row })
         } else {
             None
         }
     }
+
+    // Uses the algorithm by Efraimidis and Spirakis from this paper:
+    // https://utopia.duth.gr/~pefraimi/research/data/2007EncOfAlg.pdf
+    pub fn gen_random_locations(n: usize) -> Option<Vec<Self>> {
+        if n > NUM_SQUARES {
+            return None;
+        }
+
+        // Indecies count down rows first, then across columns:
+        // 0 3 6 9
+        // 1 4 7 10
+        // 2 5 8 11
+        #[derive(Debug)]
+        struct Item {
+            data: usize, // index
+            weight: f64,
+            key: f64,
+        }
+
+        fn new_item(data: usize, weight: f64) -> Item {
+            let u: f64 = thread_rng().gen();
+            Item {
+                data,
+                weight,
+                key: u.powf(1.0 / weight),
+            }
+        }
+
+        let candidates = {
+            let mut candidates: Vec<Item> = Vec::with_capacity(NUM_SQUARES);
+            for i in 0..NUM_SQUARES {
+                candidates.push(new_item(i, DAILY_DOUBLE_WEIGHTS[i % CATEGORY_HEIGHT]));
+            }
+
+            candidates.sort_by(|a, b| {
+                a.key
+                    .partial_cmp(&b.key)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .reverse()
+            });
+
+            candidates
+        };
+
+        Some(
+            candidates[0..n]
+                .iter()
+                .map(|item| Location {
+                    row: item.data % CATEGORY_HEIGHT,
+                    category: item.data / CATEGORY_HEIGHT,
+                })
+                .collect(),
+        )
+    }
 }
 
 #[derive(Debug, Serialize)]
 struct JeopardyBoard {
-    categories: [Category; 6],
+    categories: [Category; NUM_CATEGORIES],
     daily_doubles: Vec<Location>,
-    value_multiplier: i64, // base values are "1, 2, 3, 4, 5" going down a column
+    value_multiplier: i64, // base values are "1, 2, 3, ..." going down a column
 }
 impl JeopardyBoard {
     fn get_square(&self, location: &Location) -> &Square {
@@ -85,14 +147,14 @@ impl JeopardyBoard {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Category {
     pub title: Cow<'static, str>,
     pub commentary: Option<String>,
-    pub squares: [Square; 5],
+    pub squares: [Square; CATEGORY_HEIGHT],
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Square {
     clue: Clue,
     state: SquareState,
@@ -132,14 +194,14 @@ impl Square {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 enum SquareState {
     Normal,
     Flipped,
     Finished,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Clue {
     pub text: Option<String>,
     pub link: Option<String>,
@@ -297,8 +359,83 @@ impl Game {
         id
     }
 
-    pub(crate) fn load_new_board(&mut self, multiplier: i64) -> Result<(), Error> {
-        unimplemented!()
+    pub(crate) fn load_new_board(
+        &mut self,
+        multiplier: i64,
+        daily_double_count: usize,
+    ) -> Result<(), Error> {
+        let board = self
+            .make_random_board(multiplier, daily_double_count)
+            .ok_or(Error::TooManyDailyDoubles)?;
+
+        let new_state = match &self.state {
+            GameState::NoBoard => {
+                let controller = self.get_random_player_with_lowest_score();
+                GameState::WaitingForSquareSelection { board, controller }
+            }
+
+            GameState::WaitingForSquareSelection { controller, .. }
+            | GameState::WaitingForAnswer { controller, .. }
+            | GameState::WaitingForDailyDoubleWager { controller, .. }
+            | GameState::WaitingForBuzzer { controller, .. } => {
+                GameState::WaitingForSquareSelection {
+                    board,
+                    controller: controller.clone(),
+                }
+            }
+        };
+
+        self.state = new_state;
+        Ok(())
+    }
+
+    fn get_random_player_with_lowest_score(&self) -> PlayerId {
+        let mut lowest_score = i64::max_value();
+        let mut group_with_lowest_score = Vec::with_capacity(self.players.len());
+
+        for (player_id, player) in &self.players {
+            if player.score < lowest_score {
+                group_with_lowest_score.clear();
+                lowest_score = player.score;
+            }
+
+            if player.score == lowest_score {
+                group_with_lowest_score.push(player_id.clone());
+            }
+        }
+
+        group_with_lowest_score
+            .choose(&mut thread_rng())
+            .unwrap()
+            .clone()
+    }
+
+    fn make_random_board(
+        &self,
+        multiplier: i64,
+        daily_double_count: usize,
+    ) -> Option<Box<JeopardyBoard>> {
+        Some(Box::new(JeopardyBoard {
+            categories: [
+                self.get_random_category(),
+                self.get_random_category(),
+                self.get_random_category(),
+                self.get_random_category(),
+                self.get_random_category(),
+                self.get_random_category(),
+            ],
+            value_multiplier: multiplier,
+            daily_doubles: Location::gen_random_locations(daily_double_count)?,
+        }))
+    }
+
+    fn get_random_category(&self) -> Category {
+        CATEGORIES
+            .get()
+            .unwrap()
+            .choose(&mut thread_rng())
+            .unwrap()
+            .clone()
     }
 
     pub(crate) fn select_square(&mut self, location: &Location) -> Result<(), Error> {

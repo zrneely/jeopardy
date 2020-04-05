@@ -214,21 +214,12 @@ async fn main() {
 
     let mut categories = Vec::new();
     let time_taken = chrono::Duration::span(|| categories = data::load(DATABASE_PATH).unwrap());
-    trace!(
+    info!(
         "Loaded {} categories in {} ms",
         categories.len(),
         time_taken.num_milliseconds()
     );
     CATEGORIES.set(categories).unwrap();
-
-    // TODO: remove, just for testing
-    use rand::seq::SliceRandom;
-    for _ in 0..5 {
-        let category = &CATEGORIES.get().unwrap()[..]
-            .choose(&mut rand::thread_rng())
-            .unwrap();
-        trace!("Random category: {:#?}", category);
-    }
 
     // Create our MPSC pair
     let (sender, mut receiver) = mpsc::unbounded_channel();
@@ -311,7 +302,7 @@ async fn main() {
 
         // Moderator-only functions
         "jpdy.end_game" => server::end_game,
-        // "jpdy.new_board" => server::new_board,
+        "jpdy.new_board" => server::new_board,
         "jpdy.select_square" => server::select_square,
         "jpdy.answer" => server::answer,
         // "jpdy.change_square_state" => server::change_square_state,
