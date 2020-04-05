@@ -1,38 +1,34 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>Onitama</title>
-        <link rel="stylesheet" type="text/css" href="/index.css">
-        <script src="https://code.jquery.com/jquery-3.2.1.min.js"
-                integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-                crossorigin="anonymous">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Onitama</title>
+    <link rel="stylesheet" type="text/css" href="/index.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous">
         </script>
-        <script src="/autobahn.min.js"></script>
-        <script type="text/javascript" src="/index.js"></script>
-    </head>
-    <body>
-        <div id="main-container">
-            <fieldset id="open-games">
-                <legend>Open Games</legend>
-                <form id="open-games-container">
-                    <h4>Loading open games...</h4>
-                </form>
-            </fieldset>
-            <div id="new-game-form">
-                <h3>Type your name in the box.</h3>
-                <input type="text" id="name" />
-                <input type="button" id="make-game" value="Make Game" />
-                <input type="button" id="join-game" value="Join Selected Game" />
-                <hr>
-                <h3>Commands (type them in chat):</h3>
-                <dl>
-                    <dt>/resign</dt>
-                    <dd>Makes you lose the game.</dd>
-                </dl>
-                <hr>
-                <small>Games created more than 24 hours ago are automatically deleted.</small>
-            </div>
+    <script src="/autobahn.min.js"></script>
+    <script type="text/javascript" src="/index.js"></script>
+</head>
+
+<body>
+    <div id="main-container">
+        <fieldset id="open-games">
+            <legend>Open Games</legend>
+            <form id="open-games-container">
+                <h4>Loading open games...</h4>
+            </form>
+        </fieldset>
+        <div id="new-game-form">
+            <h3>Type your name in the box.</h3>
+            <input type="text" id="name" />
+            <input type="button" id="make-game" value="Make Game" />
+            <input type="button" id="join-game" value="Join Selected Game" />
+            <hr>
+            <small>Games created more than 24 hours ago are automatically deleted.</small>
         </div>
-    </body>
+    </div>
+</body>
+
 </html>

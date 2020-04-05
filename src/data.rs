@@ -15,6 +15,7 @@ struct Row {
     category: String,
     category_comm: String,
     clue_text: String,
+    daily_double_flg: u8,
     answer_text: String,
     clue_link: String,
 }
@@ -54,6 +55,8 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
 
     let mut categories = Vec::new();
 
+    let mut occurrences = [0usize; 5];
+
     for (_key, group) in results
         .filter_map(|row| row.ok())
         .filter(|row| !matches!(row.r#type, RowType::FinalJeopardy))
@@ -63,6 +66,12 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
     {
         let group: Vec<Row> = group.collect();
         assert!(group.len() == 5);
+
+        for i in 0..5 {
+            if group[i].daily_double_flg != 0 {
+                occurrences[i] += 1;
+            }
+        }
 
         categories.push(Category {
             title: Cow::Owned(group[0].category.clone()),
@@ -80,6 +89,8 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
             ],
         });
     }
+
+    log::info!("Occurrences of Daily Doubles: {:?}", occurrences);
 
     Ok(categories)
 }

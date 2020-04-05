@@ -297,7 +297,6 @@ async fn main() {
         "jpdy.new_game" => server::make_game,
         "jpdy.join" => server::join_game,
         "jpdy.list_games" => server::get_games,
-        // "jpdy.lag_test" => server::lag_test,
         "jpdy.game_state" => server::get_game_state,
 
         // Moderator-only functions
@@ -305,8 +304,8 @@ async fn main() {
         "jpdy.new_board" => server::new_board,
         "jpdy.select_square" => server::select_square,
         "jpdy.answer" => server::answer,
-        // "jpdy.change_square_state" => server::change_square_state,
-        // "jpdy.change_player_score" => server::change_player_score,
+        "jpdy.change_square_state" => server::change_square_state,
+        "jpdy.change_player_score" => server::change_player_score,
 
         // Player-only functions
         "jpdy.submit_wager" => server::submit_wager,

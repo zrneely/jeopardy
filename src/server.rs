@@ -3,7 +3,7 @@ use wamp_async::{WampArgs, WampError, WampKwArgs};
 
 use crate::{
     errors::Error,
-    game::{Location, Player, PlayerType},
+    game::{Location, Player, PlayerType, SquareState},
     AuthToken, GameId, Message, PlayerId, GAME_LOBBY_CHANNEL, MSG_QUEUE, OPERATION_TIMEOUT, STATE,
 };
 
@@ -296,6 +296,95 @@ pub async fn new_board(
             Some(PlayerType::Moderator)
         ) {
             game.load_new_board(multiplier, daily_doubles)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: change a square's state
+pub async fn change_square_state(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("change_square_state");
+    wamp_kwargs!(kwargs, {
+        game_id: GameId,
+        player_id: PlayerId,
+        auth: AuthToken,
+        category: usize,
+        row: usize,
+        new_state: bool, // true: ready, false: finished
+    });
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            let location = Location::new(category, row).ok_or(Error::InvalidSquare)?;
+            game.set_square_state(
+                &location,
+                if new_state {
+                    SquareState::Normal
+                } else {
+                    SquareState::Finished
+                },
+            )?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: change a player's score
+pub async fn change_player_score(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("change_player_score");
+    wamp_kwargs!(kwargs, {
+        game_id: GameId,
+        player_id: PlayerId,
+        auth: AuthToken,
+        target: PlayerId,
+        new_score: i64,
+    });
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.set_player_score(&target, new_score)?;
         } else {
             return Err(Error::NotAllowed.into());
         }

@@ -47,8 +47,8 @@ const DUMMY_SQUARE: Square = Square {
     state: SquareState::Finished,
 };
 
-// TODO: actual values
-const DAILY_DOUBLE_WEIGHTS: [f64; CATEGORY_HEIGHT] = [0.01, 0.01, 0.01, 0.01, 0.99];
+// Raw counts: 10, 433, 998, 1433, 945
+const DAILY_DOUBLE_WEIGHTS: [f64; CATEGORY_HEIGHT] = [0.002, 0.113, 0.261, 0.375, 0.247];
 
 #[derive(Debug, Clone, Copy, Serialize, Hash, Eq, PartialEq)]
 pub struct Location {
@@ -195,7 +195,7 @@ impl Square {
 }
 
 #[derive(Debug, Clone, Serialize)]
-enum SquareState {
+pub enum SquareState {
     Normal,
     Flipped,
     Finished,
@@ -583,6 +583,33 @@ impl Game {
         };
 
         self.state = new_state;
+        Ok(())
+    }
+
+    pub(crate) fn set_square_state(
+        &mut self,
+        location: &Location,
+        state: SquareState,
+    ) -> Result<(), Error> {
+        match self.state {
+            GameState::WaitingForSquareSelection { ref mut board, .. }
+            | GameState::WaitingForDailyDoubleWager { ref mut board, .. }
+            | GameState::WaitingForBuzzer { ref mut board, .. }
+            | GameState::WaitingForAnswer { ref mut board, .. } => {
+                board.get_square_mut(location).set_flip_state(state);
+            }
+
+            _ => return Err(Error::InvalidStateForOperation),
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn set_player_score(&mut self, player: &PlayerId, score: i64) -> Result<(), Error> {
+        self.players
+            .get_mut(player)
+            .ok_or(Error::NoSuchPlayer)?
+            .score = score;
         Ok(())
     }
 }
