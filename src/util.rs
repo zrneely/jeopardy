@@ -1,6 +1,4 @@
-use crate::{game::Player, GameId};
-
-use std::ops::{Index, IndexMut};
+use crate::GameId;
 
 #[macro_export]
 macro_rules! wamp_dict {
@@ -9,13 +7,12 @@ macro_rules! wamp_dict {
     };
     { $( $name:expr => $val:expr , )* } => {
         {
-            let mut map = ::std::collections::HashMap::new();
+            let mut map = ::std::collections::HashMap::<String, _>::new();
             $(
                 map.insert(
                     $name.into(),
                     ::wamp_async::Arg::String(
-                        ::serde_json::to_string(&$val).map_err(
-                            <serde_json::error::Error as Into<crate::errors::Error>>::into)?
+                        ::serde_json::to_string(&$val).expect("Failed to serialize!")
                     )
                 );
             )*
@@ -63,82 +60,10 @@ macro_rules! rpc_register {
     };
 }
 
-macro_rules! mutate_game {
-    ( $game:ident = $global:ident [ $id:expr ] , $who:expr , $auth:expr , $code:block ) => {{
-        let global = $global
-            .games
-            .try_read_for(crate::OPERATION_TIMEOUT)
-            .ok_or(crate::errors::Error::LockTimeout)?;
-
-        let res = {
-            let mut running_game = global
-                .get(&$id)
-                .ok_or(crate::errors::Error::UnknownGame)?
-                .try_write_for(crate::OPERATION_TIMEOUT)
-                .ok_or(crate::errors::Error::LockTimeout)?;
-
-            if running_game.get_player_token($who) != $auth {
-                return Err(crate::errors::Error::BadAuth.into());
-            }
-
-            let $game = &mut running_game.state;
-
-            $code
-        };
-
-        parking_lot::RwLockReadGuard::unlock_fair(global);
-        res
-    }};
-}
-
 pub(crate) fn get_state_channel(game_id: &GameId) -> String {
-    format!("ontm.chan.game.{}.sys", game_id.0.to_hyphenated())
+    format!("jpdy.chan.game.{}.sys", game_id.0.to_hyphenated())
 }
 
 pub(crate) fn get_chat_channel(game_id: &GameId) -> String {
-    format!("ontm.chan.game.{}.chat", game_id.0.to_hyphenated())
-}
-
-// Data which exists for both players.
-#[derive(Debug)]
-pub(crate) struct PlayerData<T> {
-    pub white: T,
-    pub black: T,
-}
-impl<T> Index<Player> for PlayerData<T> {
-    type Output = T;
-
-    fn index(&self, index: Player) -> &Self::Output {
-        match index {
-            Player::White => &self.white,
-            Player::Black => &self.black,
-        }
-    }
-}
-impl<T> IndexMut<Player> for PlayerData<T> {
-    fn index_mut(&mut self, index: Player) -> &mut Self::Output {
-        match index {
-            Player::White => &mut self.white,
-            Player::Black => &mut self.black,
-        }
-    }
-}
-impl<T: Default> Default for PlayerData<T> {
-    fn default() -> Self {
-        PlayerData {
-            white: T::default(),
-            black: T::default(),
-        }
-    }
-}
-impl<T> PlayerData<Option<T>> {
-    pub fn get_missing(&self) -> Option<Player> {
-        if self.white.is_none() {
-            Some(Player::White)
-        } else if self.black.is_none() {
-            Some(Player::Black)
-        } else {
-            None
-        }
-    }
+    format!("jpdy.chan.game.{}.chat", game_id.0.to_hyphenated())
 }

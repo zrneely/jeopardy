@@ -42,6 +42,10 @@ pub struct GameId(Uuid);
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct AuthToken(Uuid);
 
+/// A player ID.
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct PlayerId(Uuid);
+
 /// A message to be sent (typically from an RPC invocation)
 #[derive(Debug)]
 struct Message {
@@ -56,7 +60,7 @@ struct OnitamaState {
     // time a write lock is needed on the outer HashMap is when new games are added or old ones are
     // removed. Other possible improvements include having multiple maps and choosing randomly
     // which one to add to in order to further reduce the chance of lock contention.
-    games: RwLock<HashMap<GameId, RwLock<RunningGame>>>,
+    games: RwLock<HashMap<GameId, RwLock<game::Game>>>,
 }
 impl OnitamaState {
     /// Deletes a game from the map. Will acquire the global game write lock.
@@ -70,14 +74,16 @@ impl OnitamaState {
     }
 
     /// Adds a game to the state. Will acquire (and release) the global game write lock.
-    pub fn add_game_with_one_name(
+    pub fn add_game(
         &self,
-        who: game::Player,
-        name: String,
-    ) -> Result<(GameId, AuthToken), Error> {
+        moderator_name: String,
+    ) -> Result<(GameId, PlayerId, AuthToken, String), Error> {
         let game_id = GameId(Uuid::new_v4());
-        let game = RunningGame::with_one_player_name(who, name);
-        let auth_token = game.tokens[who].clone();
+        let moderator = game::Player::new(moderator_name);
+        let auth_token = moderator.get_auth();
+        let game = game::Game::new(moderator);
+        let user_id = game.moderator_id.clone();
+        let moderator_channel = game.moderator_state_channel.clone();
 
         self.games
             .try_write_for(OPERATION_TIMEOUT)
@@ -85,106 +91,108 @@ impl OnitamaState {
             .insert(game_id.clone(), RwLock::new(game));
 
         info!("New game ({:?}) added to global state", game_id);
-        Ok((game_id, auth_token))
+        Ok((game_id, user_id, auth_token, moderator_channel))
     }
 
     /// Gets the list of open games. Acquires the global game read lock, and each game's read lock
     /// as well.
-    pub fn get_open_games(&self) -> Result<WampDict, Error> {
-        Ok(wamp_dict! {
-            "games" => self.games
-                .try_read_for(OPERATION_TIMEOUT)
-                .ok_or(Error::LockTimeout)?
-                .iter()
-                .filter_map(|(game_id, game)| {
-                    let game = game.try_read_for(OPERATION_TIMEOUT).unwrap();
-                    if let Some(player) = game.names.get_missing() {
-                        Some((game_id, game.names[player.opponent()].clone()))
-                    } else {
-                        None
-                    }
+    pub fn get_games(&self) -> Result<WampDict, Error> {
+        let games = self
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let games = games
+            .iter()
+            .filter_map(|(game_id, game)| {
+                let game = game.try_read_for(OPERATION_TIMEOUT)?;
+
+                Some(wamp_dict! {
+                    "id" => game_id,
+                    "owner" => game.get_moderator_name().ok()?,
+                    "players" => game.get_player_names(),
                 })
-                .collect::<Vec<_>>(),
+            })
+            .collect::<Vec<_>>();
+
+        Ok(wamp_dict! {
+            "games" => games,
         })
+    }
+
+    pub fn add_player(
+        &self,
+        game_id: &GameId,
+        player_name: String,
+    ) -> Result<(PlayerId, AuthToken), Error> {
+        let games = self
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let player = game::Player::new(player_name);
+        let auth_token = player.get_auth();
+        let id = game.add_player(player);
+
+        Ok((id, auth_token))
     }
 
     /// Broadcasts a state update for the given game. If that game is over, remove it from the map.
     pub async fn broadcast_game_state_update(&self, game_id: &GameId) -> Result<(), Error> {
         info!("broadcast_game_state_update: {:?}", game_id);
-        let mut winner_found = false;
 
-        let kwargs = {
-            let global = self
+        let is_ended = {
+            let games = self
                 .games
                 .try_read_for(OPERATION_TIMEOUT)
                 .ok_or(Error::LockTimeout)?;
-
-            let running_game = global
-                .get(&game_id)
+            let game = games
+                .get(game_id)
                 .ok_or(Error::UnknownGame)?
                 .try_read_for(OPERATION_TIMEOUT)
                 .ok_or(Error::LockTimeout)?;
 
-            let winner = running_game.state.get_winner();
-            if winner.is_some() {
-                winner_found = true;
-            }
+            let moderator_state = game.serialize_for_moderator();
+            let player_state = game.serialize_for_players();
 
-            wamp_dict! {
-                "state" => running_game.state,
-                "winner" => winner,
-            }
+            MSG_QUEUE
+                .get()
+                .unwrap()
+                .send(Message {
+                    topic: Cow::Owned(game.moderator_state_channel.clone()),
+                    args: None,
+                    kwargs: Some(wamp_dict! {
+                        "state" => moderator_state,
+                    }),
+                })
+                .unwrap();
+
+            MSG_QUEUE
+                .get()
+                .unwrap()
+                .send(Message {
+                    topic: Cow::Owned(game.player_state_channel.clone()),
+                    args: None,
+                    kwargs: Some(wamp_dict! {
+                        "state" => player_state,
+                    }),
+                })
+                .unwrap();
+
+            game.is_ended
         };
 
-        MSG_QUEUE
-            .get()
-            .unwrap()
-            .send(Message {
-                topic: Cow::Owned(util::get_state_channel(game_id)),
-                args: None,
-                kwargs: Some(kwargs),
-            })
-            .unwrap();
-
-        if winner_found {
-            self.remove_game(game_id)?;
+        if is_ended {
+            self.remove_game(&game_id)?;
         }
 
         Ok(())
-    }
-}
-
-struct RunningGame {
-    state: game::Game,
-    names: util::PlayerData<Option<String>>,
-    tokens: util::PlayerData<AuthToken>,
-    time_started: DateTime<Utc>,
-}
-impl RunningGame {
-    pub fn with_one_player_name(who: game::Player, name: String) -> Self {
-        RunningGame {
-            state: game::Game::default(),
-            names: {
-                let mut data = util::PlayerData::default();
-                data[who] = Some(name);
-                data
-            },
-            tokens: util::PlayerData {
-                white: AuthToken(Uuid::new_v4()),
-                black: AuthToken(Uuid::new_v4()),
-            },
-            time_started: Utc::now(),
-        }
-    }
-
-    /// Sets one of the player's names.
-    pub fn set_player_name(&mut self, who: game::Player, name: String) {
-        self.names[who] = Some(name);
-    }
-
-    /// Gets the given player's access token.
-    pub fn get_player_token(&self, who: game::Player) -> AuthToken {
-        self.tokens[who].clone()
     }
 }
 
@@ -246,7 +254,7 @@ async fn main() {
 
             match STATE.games.try_write_for(OPERATION_TIMEOUT) {
                 Some(mut lock) => {
-                    debug!("GC got lock");
+                    trace!("GC got lock");
                     let old_count = lock.len();
 
                     lock.retain(|_, ref mut v| {
@@ -272,12 +280,25 @@ async fn main() {
     info!("Joined realm {}", WAMP_REALM);
 
     rpc_register!(client, {
+        // Meta functions
         "jpdy.new_game" => server::make_game,
-        "jpdy.move" => server::make_move,
         "jpdy.join" => server::join_game,
-        "jpdy.open_games" => server::get_open_games,
+        "jpdy.list_games" => server::get_games,
+        // "jpdy.lag_test" => server::lag_test,
         "jpdy.game_state" => server::get_game_state,
-        "jpdy.resign" => server::resign_game,
+
+        // Moderator-only functions
+        "jpdy.end_game" => server::end_game,
+        // "jpdy.new_board" => server::new_board,
+        "jpdy.select_square" => server::select_square,
+        "jpdy.answer" => server::answer,
+        // "jpdy.change_square_state" => server::change_square_state,
+        // "jpdy.change_player_score" => server::change_player_score,
+
+        // Player-only functions
+        "jpdy.submit_wager" => server::submit_wager,
+        "jpdy.buzz" => server::buzz,
+
     })
     .await
     .into_iter()

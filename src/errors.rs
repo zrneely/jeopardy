@@ -8,12 +8,13 @@ pub(crate) enum Error {
     UnknownGame,
     SerdeJson(serde_json::Error),
     BadArgument,
-    BadAuth,
     NoLoadedBoard,
     InvalidStateForOperation,
     InvalidSquareStateTransition,
-    DailyDoubleWagerTooSmall,
+    DailyDoubleWagerOutOfRange,
     NoSuchPlayer,
+    NotAllowed,
+    InvalidSquare,
 }
 impl From<wamp_async::WampError> for Error {
     fn from(value: WampError) -> Self {
@@ -36,12 +37,13 @@ impl From<Error> for WampError {
                 UnknownGame => "jpdy.unknown_error",
                 SerdeJson(_) => "jpdy.json_error",
                 BadArgument => "jpdy.bad_argument",
-                BadAuth => "jpdy.bad_auth",
                 NoLoadedBoard => "jpdy.no_board",
                 InvalidStateForOperation => "jpdy.invalid_game_state",
                 InvalidSquareStateTransition => "jpdy.invalid_square_state_transition",
-                DailyDoubleWagerTooSmall => "jpdy.wager_too_small",
+                DailyDoubleWagerOutOfRange => "jpdy.wager_out_of_range",
                 NoSuchPlayer => "jpdy.no_such_player",
+                NotAllowed => "jpdy.not_allowed",
+                InvalidSquare => "jpdy.invalid_square",
             }
             .into(),
         )
