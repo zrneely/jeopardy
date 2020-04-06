@@ -3,23 +3,6 @@ const WAMP_REALM = "ontm";
 //const WS_SERVER = "ws://ontm-1.cloudsynrgy.solutions/ws";
 const WS_SERVER = "ws://127.0.0.1:8080/ws";
 
-// These functions take the entire text of the command, the session object, and the game data.
-// They return true if they consumed the message (i.e., it shouldn't be sent to the chat).
-const COMMANDS = {
-  "resign": function(text, session, gameData) {
-    session.call("ontm.resign", [], {
-      game_id: JSON.stringify(gameData.gameId),
-      who: JSON.stringify(gameData.color),
-      auth: JSON.stringify(gameData.token),
-    }).then(function() {
-      session.log("resigned successfully");
-    }, function(error) {
-      handleError("could not resign", error);
-    });
-    return true;
-  },
-};
-
 const CARDS = {
   "Dragon":     ["竜",     [[ 1, -2], [ 1,  2], [-1, -1], [-1,  1]]],
   "Tiger":      ["虎",     [[ 2,  0], [-1,  0]                    ]],
@@ -331,22 +314,6 @@ const setPlayerNames = function(myColor, white, black) {
   }
 };
 
-const handleChatMessage = function(messageWrapper, myColor) {
-  const message = JSON.parse(messageWrapper.message);
-
-  const $ele = $("<div>");
-  $ele.addClass("chat-message");
-  if (message.player === null) {
-    $ele.addClass("system");
-  } else if (message.player === myColor) {
-    $ele.addClass("self");
-  } else {
-    $ele.addClass("opponent");
-  }
-  $ele.text(message.text);
-  $("#chat-history").prepend($ele);
-};
-
 // Returns true if it consumed the input (i.e., it should not be sent as a message).
 const processCommand = function(text, session, gameData) {
   const commandEnd = text.indexOf(" ");
@@ -476,42 +443,8 @@ const joinGame = function(session, gameData) {
   buildGameBoard($gameBoard, gameData, session);
   $game.append($gameBoard);
 
-  const $chat = $("<div>");
-  $chat.attr("id", "chat");
-
-  const $chatHistory = $("<div>");
-  $chatHistory.attr("id", "chat-history");
-  $chat.append($chatHistory);
-
-  const $chatBox = $("<textarea>");
-  $chatBox.attr("rows", "3");
-  $chatBox.attr("wrap", "hard");
-  $chatBox.attr("placeholder", "Send a nice message");
-  $chatBox.on("keypress", function(event) {
-    const $this = $(this);
-    const text = $this.val().trim();
-    if (text.length > 0 && event.key === "Enter" && !event.shiftKey) {
-      $this.val("");
-      if (text.startsWith("/") && processCommand(text, session, gameData)) {
-        return;
-      }
-      session.publish("ontm.chan.game." + gameData.gameId + ".chat", [], {
-        message: JSON.stringify({
-          "text": text,
-          "player": gameData.color,
-          "time": Date.now(),
-        }),
-      }, {
-        exclude_me: false,
-      });
-      return false;
-    }
-  });
-  $chat.append($chatBox);
-
   $container.append($cards);
   $container.append($game);
-  $container.append($chat);
 
   // Unsubscribe from the lobby channel
   let lobbyUnsubscribePromise;
@@ -521,16 +454,10 @@ const joinGame = function(session, gameData) {
     lobbyUnsubscribePromise = Promise.resolve(null);
   }
 
-  // Request the initial game state and subscribe to the chat and update channels
+  // Request the initial game state and subscribe to the update channel
   let requestPromise = session.call("ontm.game_state", [], {
     "game_id": JSON.stringify(gameData.gameId),
   });
-  let chatSubscribePromise = session.subscribe(
-    "ontm.chan.game." + gameData.gameId + ".chat",
-    function(_, messageWrapper) {
-      handleChatMessage(messageWrapper, gameData.color);
-    },
-  );
   let sysSubscribePromise = session.subscribe(
     "ontm.chan.game." + gameData.gameId + ".sys",
     function(_, update) {
@@ -539,7 +466,6 @@ const joinGame = function(session, gameData) {
   );
   Promise.all([
     requestPromise,
-    chatSubscribePromise,
     sysSubscribePromise,
     lobbyUnsubscribePromise,
   ]).then(function(v) {
@@ -569,7 +495,7 @@ $(function() {
 
     // When "make game" is clicked... make a game.
     $("#make-game").on("click", function() {
-      session.call("ontm.new_game", [], {
+      session.call("jpdy.new_game", [], {
         "player_name": JSON.stringify($("#name").val()),
       }).then(function(result) {
         session.log("new_game result: " + JSON.stringify(result.kwargs));

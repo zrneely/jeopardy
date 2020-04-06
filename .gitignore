@@ -6,3 +6,4 @@ node_modules/
 *.un~
 *.*~
 *.csv
+crossbar_test/

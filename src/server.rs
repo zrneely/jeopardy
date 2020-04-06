@@ -15,7 +15,7 @@ pub async fn make_game(
     info!("make_game");
 
     wamp_kwargs!(kwargs, {
-        player_name: String,        // The name of the player
+        player_name: String,        // The name of the moderator
     });
 
     let (game_id, player_id, auth_token, moderator_channel) =
