@@ -1,0 +1,20 @@
+{
+  "devDependencies": {
+    "@types/autobahn": "^18.10.0",
+    "@types/jquery": "^3.3.34",
+    "ts-loader": "^6.2.2",
+    "typescript": "^3.8.3",
+    "webpack": "^4.42.1",
+    "webpack-cli": "^3.3.11"
+  },
+  "dependencies": {
+    "autobahn-browser": "^20.2.2"
+  },
+  "name": "jeopardy",
+  "version": "1.0.0",
+  "description": "Jeopardy",
+  "scripts": {
+    "build": "webpack --display-error-details -p --mode=production"
+  },
+  "license": "MIT"
+}

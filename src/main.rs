@@ -112,8 +112,8 @@ impl OnitamaState {
                 let game = game.try_read_for(OPERATION_TIMEOUT)?;
 
                 Some(wamp_dict! {
-                    "id" => game_id,
-                    "owner" => game.get_moderator_name().ok()?,
+                    "game_id" => game_id,
+                    "moderator" => game.get_moderator_name().ok()?,
                     "players" => game.get_player_names(),
                 })
             })
@@ -239,6 +239,7 @@ async fn main() {
     )
     .await
     .expect("Failed to connect to router!");
+    trace!("Connected!");
 
     let (evt_loop, rpc_queue) = client
         .event_loop()

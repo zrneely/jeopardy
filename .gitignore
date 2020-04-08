@@ -1,9 +1,12 @@
 node_modules/
 /target/
 **/*.rs.bk
-*.json
 *.swp
 *.un~
 *.*~
 *.csv
 crossbar_test/
+static/index.js
+*.tsbuildinfo
+*.js.map
+*.bundle.js
