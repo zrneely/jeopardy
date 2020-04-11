@@ -6,7 +6,6 @@ pub(crate) enum Error {
     Wamp(WampError),
     LockTimeout,
     UnknownGame,
-    SerdeJson(serde_json::Error),
     BadArgument,
     NoLoadedBoard,
     InvalidStateForOperation,
@@ -22,11 +21,6 @@ impl From<wamp_async::WampError> for Error {
         Error::Wamp(value)
     }
 }
-impl From<serde_json::Error> for Error {
-    fn from(value: serde_json::Error) -> Self {
-        Error::SerdeJson(value)
-    }
-}
 impl From<Error> for WampError {
     fn from(value: Error) -> WampError {
         use Error::*;
@@ -36,7 +30,6 @@ impl From<Error> for WampError {
                 Wamp(we) => return we,
                 LockTimeout => "jpdy.lock_timeout",
                 UnknownGame => "jpdy.unknown_error",
-                SerdeJson(_) => "jpdy.json_error",
                 BadArgument => "jpdy.bad_argument",
                 NoLoadedBoard => "jpdy.no_board",
                 InvalidStateForOperation => "jpdy.invalid_game_state",

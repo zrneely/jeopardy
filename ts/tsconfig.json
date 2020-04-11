@@ -12,9 +12,12 @@
         "noUnusedParameters": true,
         "outDir": "build-tsc",
         "sourceMap": true,
-        "strict": true
+        "strict": true,
+        "jsx": "react"
     },
     "files": [
-        "./index.ts"
+        "./index.tsx",
+        "./lobby.tsx",
+        "./common.tsx"
     ]
 }

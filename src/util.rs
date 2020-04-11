@@ -11,35 +11,11 @@ macro_rules! wamp_dict {
             $(
                 map.insert(
                     $name.into(),
-                    ::wamp_async::Arg::String(
-                        ::serde_json::to_string(&$val).expect("Failed to serialize!")
-                    )
+                    ::wamp_async::Arg::String($val),
                 );
             )*
             map
         }
-    };
-}
-
-#[macro_export]
-macro_rules! wamp_kwargs {
-    ( $arglist:expr , {  $( $name:ident : $type:ty , )* } ) => {
-        let args = $arglist.ok_or_else(||
-            ::wamp_async::WampError::UnknownError("expected kwargs".into()))?;
-
-        $(
-            let $name: $type = match args.get(stringify!($name)) {
-                Some(&::wamp_async::Arg::Uri(ref val)) => {
-                    ::serde_json::from_str(val).map_err(|json_err| {
-                        warn!("Failed to parse kwarg {}: {:?}", stringify!($name), json_err);
-                        ::wamp_async::WampError::UnknownError(
-                            concat!("failed to parse kwarg ", stringify!($name)).into())
-                    })?
-                }
-                _ => return Err(::wamp_async::WampError::UnknownError(
-                    concat!("missing expected arg ", stringify!($name)).into())),
-            };
-        )*
     };
 }
 

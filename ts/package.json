@@ -2,19 +2,24 @@
   "devDependencies": {
     "@types/autobahn": "^18.10.0",
     "@types/jquery": "^3.3.34",
+    "@types/react": "^16.9.34",
+    "@types/react-dom": "^16.9.6",
     "ts-loader": "^6.2.2",
     "typescript": "^3.8.3",
     "webpack": "^4.42.1",
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
-    "autobahn-browser": "^20.2.2"
+    "autobahn-browser": "^20.2.2",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "name": "jeopardy",
   "version": "1.0.0",
   "description": "Jeopardy",
   "scripts": {
-    "build": "webpack --display-error-details -p --mode=production"
+    "build": "webpack --display-error-details --progress --mode=\"development\"",
+    "build_prod": "webpack --display-error-details --progress --mode=\"production\""
   },
   "license": "MIT"
 }

@@ -453,7 +453,6 @@ dependencies = [
  "parking_lot",
  "rand 0.7.3",
  "serde",
- "serde_json",
  "tokio",
  "uuid",
  "wamp_async",

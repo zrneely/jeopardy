@@ -1,73 +1,40 @@
-use std::{borrow::Cow, collections::HashMap, convert::TryInto};
+use std::{borrow::Cow, collections::HashMap, convert::TryInto, fmt};
 
 use chrono::{DateTime, Utc};
 use log::*;
 use rand::{seq::SliceRandom, thread_rng, Rng};
-use serde::Serialize;
 use uuid::Uuid;
+use wamp_async::{Arg, WampDict};
 
 use crate::{errors::Error, AuthToken, PlayerId, CATEGORIES};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
 const MIN_MAX_DAILY_DOUBLE_WAGER: i64 = 1000;
-
-const NUM_CATEGORIES: usize = 6;
 const CATEGORY_HEIGHT: usize = 5;
-const NUM_SQUARES: usize = NUM_CATEGORIES * CATEGORY_HEIGHT;
 
 const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
-    categories: [
-        DUMMY_CATEGORY,
-        DUMMY_CATEGORY,
-        DUMMY_CATEGORY,
-        DUMMY_CATEGORY,
-        DUMMY_CATEGORY,
-        DUMMY_CATEGORY,
-    ],
-    daily_doubles: Vec::new(), // thank you for being const
+    categories: Vec::new(),
+    daily_doubles: Vec::new(),
     value_multiplier: 0,
-};
-const DUMMY_CATEGORY: Category = Category {
-    title: Cow::Borrowed("dummy"),
-    commentary: None,
-    squares: [
-        DUMMY_SQUARE,
-        DUMMY_SQUARE,
-        DUMMY_SQUARE,
-        DUMMY_SQUARE,
-        DUMMY_SQUARE,
-    ],
-};
-const DUMMY_SQUARE: Square = Square {
-    clue: Clue {
-        text: None,
-        link: None,
-    },
-    answer: Cow::Borrowed("dummy"),
-    state: SquareState::Finished,
 };
 
 // Raw counts: 10, 433, 998, 1433, 945
-const DAILY_DOUBLE_WEIGHTS: [f64; CATEGORY_HEIGHT] = [0.002, 0.113, 0.261, 0.375, 0.247];
+const DAILY_DOUBLE_WEIGHTS: [f64; 5] = [0.002, 0.113, 0.261, 0.375, 0.247];
 
-#[derive(Debug, Clone, Copy, Serialize, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct Location {
     category: usize, // 0 is left, 4 is right
     row: usize,      // 0 is top, 4 is bottom
 }
 impl Location {
     pub fn new(category: usize, row: usize) -> Option<Self> {
-        if category < NUM_CATEGORIES && row < CATEGORY_HEIGHT {
-            Some(Location { category, row })
-        } else {
-            None
-        }
+        Some(Location { category, row })
     }
 
     // Uses the algorithm by Efraimidis and Spirakis from this paper:
     // https://utopia.duth.gr/~pefraimi/research/data/2007EncOfAlg.pdf
-    pub fn gen_random_locations(n: usize) -> Option<Vec<Self>> {
-        if n > NUM_SQUARES {
+    pub fn gen_random_locations(n: usize, categories: usize) -> Option<Vec<Self>> {
+        if n > (categories * CATEGORY_HEIGHT) {
             return None;
         }
 
@@ -92,8 +59,8 @@ impl Location {
         }
 
         let candidates = {
-            let mut candidates: Vec<Item> = Vec::with_capacity(NUM_SQUARES);
-            for i in 0..NUM_SQUARES {
+            let mut candidates: Vec<Item> = Vec::with_capacity(categories * CATEGORY_HEIGHT);
+            for i in 0..(categories * CATEGORY_HEIGHT) {
                 candidates.push(new_item(i, DAILY_DOUBLE_WEIGHTS[i % CATEGORY_HEIGHT]));
             }
 
@@ -117,11 +84,18 @@ impl Location {
                 .collect(),
         )
     }
+
+    fn serialize(&self) -> WampDict {
+        let mut result = WampDict::new();
+        result.insert("category".into(), Arg::String(self.category.to_string()));
+        result.insert("row".into(), Arg::String(self.row.to_string()));
+        result
+    }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 struct JeopardyBoard {
-    categories: [Category; NUM_CATEGORIES],
+    categories: Vec<Category>,
     daily_doubles: Vec<Location>,
     value_multiplier: i64, // base values are "1, 2, 3, ..." going down a column
 }
@@ -145,21 +119,78 @@ impl JeopardyBoard {
     fn is_daily_double(&self, location: &Location) -> bool {
         self.daily_doubles.iter().any(|loc| loc == location)
     }
+
+    fn serialize(&self, for_moderator: bool) -> WampDict {
+        let mut result = WampDict::new();
+
+        result.insert(
+            "value_multiplier".into(),
+            Arg::String(self.value_multiplier.to_string()),
+        );
+
+        result.insert(
+            "categories".into(),
+            Arg::List(
+                self.categories
+                    .iter()
+                    .map(|cat| Arg::Dict(cat.serialize(for_moderator)))
+                    .collect(),
+            ),
+        );
+
+        if for_moderator {
+            result.insert(
+                "daily_doubles".into(),
+                Arg::List(
+                    self.daily_doubles
+                        .iter()
+                        .map(|dd| Arg::Dict(dd.serialize()))
+                        .collect(),
+                ),
+            );
+        }
+
+        result
+    }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Category {
     pub title: Cow<'static, str>,
     pub commentary: Option<String>,
     pub squares: [Square; CATEGORY_HEIGHT],
 }
+impl Category {
+    fn serialize(&self, for_moderator: bool) -> WampDict {
+        let mut result = WampDict::new();
 
-#[derive(Debug, Clone, Serialize)]
+        result.insert(
+            "title".into(),
+            Arg::String(self.title.to_owned().to_string()),
+        );
+
+        if let Some(ref commentary) = self.commentary {
+            result.insert("commentary".into(), Arg::String(commentary.clone()));
+        }
+
+        result.insert(
+            "squares".into(),
+            Arg::List(
+                self.squares
+                    .iter()
+                    .map(|square| Arg::Dict(square.serialize(for_moderator)))
+                    .collect(),
+            ),
+        );
+
+        result
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Square {
     clue: Clue,
     state: SquareState,
-
-    #[serde(skip)]
     answer: Cow<'static, str>,
 }
 impl Square {
@@ -169,6 +200,35 @@ impl Square {
             answer: Cow::Owned(answer),
             state: SquareState::Normal,
         }
+    }
+
+    fn serialize(&self, for_moderator: bool) -> WampDict {
+        let mut result = WampDict::new();
+        result.insert("state".into(), Arg::String(self.state.to_string()));
+
+        if for_moderator {
+            result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
+            result.insert(
+                "answer".into(),
+                Arg::String(self.answer.to_owned().to_string()),
+            );
+        } else {
+            match self.state {
+                SquareState::Normal => {}
+                SquareState::Flipped => {
+                    result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
+                }
+                SquareState::Finished => {
+                    result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
+                    result.insert(
+                        "answer".into(),
+                        Arg::String(self.answer.to_owned().to_string()),
+                    );
+                }
+            }
+        }
+
+        result
     }
 
     fn flip(&mut self) -> Result<(), Error> {
@@ -194,17 +254,39 @@ impl Square {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub enum SquareState {
     Normal,
     Flipped,
     Finished,
 }
+impl fmt::Display for SquareState {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SquareState::Normal => write!(fmt, "Normal"),
+            SquareState::Flipped => write!(fmt, "Flipped"),
+            SquareState::Finished => write!(fmt, "Finished"),
+        }
+    }
+}
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Clue {
     pub text: Option<String>,
     pub link: Option<String>,
+}
+impl Clue {
+    fn serialize(&self) -> WampDict {
+        let mut result = WampDict::new();
+        if let Some(ref text) = self.text {
+            result.insert("text".into(), Arg::String(text.into()));
+        }
+        if let Some(ref link) = self.link {
+            result.insert("link".into(), Arg::String(link.into()));
+        }
+
+        result
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -213,12 +295,10 @@ pub enum PlayerType {
     Player,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Player {
     name: String,
     score: i64,
-
-    #[serde(skip)]
     auth: AuthToken,
 }
 impl Player {
@@ -237,10 +317,16 @@ impl Player {
     pub fn check_auth(&self, auth: &AuthToken) -> bool {
         self.auth == *auth
     }
+
+    fn serialize(&self) -> WampDict {
+        let mut result = WampDict::new();
+        result.insert("name".into(), Arg::String(self.name.clone()));
+        result.insert("score".into(), Arg::String(self.score.to_string()));
+        result
+    }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "type")]
+#[derive(Debug)]
 enum GameState {
     NoBoard,
     WaitingForSquareSelection {
@@ -263,13 +349,115 @@ enum GameState {
         controller: PlayerId,    // ID of whoever's controlling the board
         active_player: PlayerId, // ID of whoever won the buzzer race or is doing the daily double
         value: i64,              // Value added to score if correct, or subtracted if wrong
-        answer: String,          // Answer to the current question
     },
+}
+impl GameState {
+    fn serialize_helper(
+        result: &mut WampDict,
+        board: &JeopardyBoard,
+        controller: &PlayerId,
+        for_moderator: bool,
+    ) {
+        result.insert("board".into(), Arg::Dict(board.serialize(for_moderator)));
+        result.insert("controller".into(), Arg::String(controller.to_string()));
+    }
+
+    fn serialize_helper2(
+        result: &mut WampDict,
+        board: &JeopardyBoard,
+        controller: &PlayerId,
+        location: &Location,
+        for_moderator: bool,
+    ) {
+        GameState::serialize_helper(result, board, controller, for_moderator);
+        result.insert("location".into(), Arg::Dict(location.serialize()));
+    }
+
+    fn serialize(&self, for_moderator: bool) -> WampDict {
+        let mut result = WampDict::new();
+
+        match self {
+            GameState::NoBoard => {
+                result.insert("type".into(), Arg::String("NoBoard".into()));
+            }
+
+            GameState::WaitingForSquareSelection { board, controller } => {
+                result.insert(
+                    "type".into(),
+                    Arg::String("WaitingForSquareSelection".into()),
+                );
+                GameState::serialize_helper(&mut result, board, controller, for_moderator);
+            }
+
+            GameState::WaitingForDailyDoubleWager {
+                board,
+                controller,
+                location,
+            } => {
+                result.insert(
+                    "type".into(),
+                    Arg::String("WaitingForDailyDoubleWager".into()),
+                );
+                GameState::serialize_helper2(
+                    &mut result,
+                    board,
+                    controller,
+                    location,
+                    for_moderator,
+                );
+            }
+
+            GameState::WaitingForBuzzer {
+                board,
+                controller,
+                location,
+            } => {
+                result.insert(
+                    "type".into(),
+                    Arg::String("WaitingForBuzzer".into()),
+                );
+                GameState::serialize_helper2(
+                    &mut result,
+                    board,
+                    controller,
+                    location,
+                    for_moderator,
+                );
+            }
+
+            GameState::WaitingForAnswer {
+                board,
+                controller,
+                location,
+                active_player,
+                .. // we don't need to send over the value of the current question
+            } => {
+                result.insert(
+                    "type".into(),
+                    Arg::String("WaitingForAnswer".into()),
+                );
+                GameState::serialize_helper2(
+                    &mut result,
+                    board,
+                    controller,
+                    location,
+                    for_moderator,
+                );
+                result.insert(
+                    "active_player".into(),
+                    Arg::String(active_player.to_string()),
+                );
+            }
+        }
+
+        result
+    }
 }
 
 #[derive(Debug)]
 pub struct Game {
     pub moderator_id: PlayerId,
+    moderator: Player,
     players: HashMap<PlayerId, Player>,
     state: GameState,
 
@@ -281,12 +469,11 @@ pub struct Game {
 impl Game {
     pub(crate) fn new(moderator: Player) -> Self {
         let moderator_id = PlayerId(Uuid::new_v4());
-        let mut players = HashMap::new();
-        players.insert(moderator_id.clone(), moderator);
 
         Game {
             moderator_id,
-            players,
+            moderator,
+            players: HashMap::new(),
             state: GameState::NoBoard,
 
             time_started: Utc::now(),
@@ -301,23 +488,19 @@ impl Game {
         id: &PlayerId,
         auth: &AuthToken,
     ) -> Option<PlayerType> {
-        if self.players.get(id)?.check_auth(auth) {
-            if *id == self.moderator_id {
-                Some(PlayerType::Moderator)
-            } else {
-                Some(PlayerType::Player)
-            }
-        } else {
-            None
+        if (*id == self.moderator_id) && self.moderator.check_auth(auth) {
+            return Some(PlayerType::Moderator);
         }
+
+        if self.players.get(id)?.check_auth(auth) {
+            return Some(PlayerType::Player);
+        }
+
+        None
     }
 
-    pub(crate) fn get_moderator_name(&self) -> Result<&str, Error> {
-        Ok(&self
-            .players
-            .get(&self.moderator_id)
-            .ok_or(Error::NoSuchPlayer)?
-            .name)
+    pub(crate) fn get_moderator_name(&self) -> &str {
+        &self.moderator.name
     }
 
     pub(crate) fn get_player_names(&self) -> Vec<&str> {
@@ -327,29 +510,41 @@ impl Game {
             .collect()
     }
 
-    pub(crate) fn serialize_for_moderator(&self) -> serde_json::Value {
-        serde_json::json!({
-            "state": self.state,
-            "players": self.players,
-            "is_ended": self.is_ended,
-        })
+    fn serialize_common(&self) -> WampDict {
+        let mut result = WampDict::new();
+
+        result.insert("is_ended".into(), Arg::Bool(self.is_ended));
+        result.insert(
+            "players".into(),
+            Arg::Dict(
+                self.players
+                    .iter()
+                    .map(|(player_id, player)| {
+                        (player_id.to_string(), Arg::Dict(player.serialize()))
+                    })
+                    .collect(),
+            ),
+        );
+
+        result
     }
 
-    pub(crate) fn serialize_for_players(&self) -> serde_json::Value {
-        let mut special_state = serde_json::to_value(&self.state).unwrap();
-        if matches!(self.state, GameState::WaitingForAnswer { .. }) {
-            assert!(special_state
-                .as_object_mut()
-                .unwrap()
-                .remove("answer")
-                .is_some());
-        }
+    pub(crate) fn serialize_for_moderator(&self) -> WampDict {
+        let mut result = self.serialize_common();
 
-        serde_json::json!({
-            "state": special_state,
-            "players": self.players,
-            "is_ended": self.is_ended,
-        })
+        result.insert("state".into(), Arg::Dict(self.state.serialize(true)));
+        result.insert("is_moderator".into(), Arg::Bool(true));
+
+        result
+    }
+
+    pub(crate) fn serialize_for_players(&self) -> WampDict {
+        let mut result = self.serialize_common();
+
+        result.insert("state".into(), Arg::Dict(self.state.serialize(false)));
+        result.insert("is_moderator".into(), Arg::Bool(false));
+
+        result
     }
 
     pub(crate) fn add_player(&mut self, player: Player) -> PlayerId {
@@ -363,9 +558,10 @@ impl Game {
         &mut self,
         multiplier: i64,
         daily_double_count: usize,
+        categories: usize,
     ) -> Result<(), Error> {
         let board = self
-            .make_random_board(multiplier, daily_double_count)
+            .make_random_board(multiplier, daily_double_count, categories)
             .ok_or(Error::TooManyDailyDoubles)?;
 
         let new_state = match &self.state {
@@ -414,18 +610,16 @@ impl Game {
         &self,
         multiplier: i64,
         daily_double_count: usize,
+        category_count: usize,
     ) -> Option<Box<JeopardyBoard>> {
+        let categories = (0..category_count)
+            .map(|_| self.get_random_category())
+            .collect();
+
         Some(Box::new(JeopardyBoard {
-            categories: [
-                self.get_random_category(),
-                self.get_random_category(),
-                self.get_random_category(),
-                self.get_random_category(),
-                self.get_random_category(),
-                self.get_random_category(),
-            ],
+            categories,
             value_multiplier: multiplier,
-            daily_doubles: Location::gen_random_locations(daily_double_count)?,
+            daily_doubles: Location::gen_random_locations(daily_double_count, category_count)?,
         }))
     }
 
@@ -492,8 +686,6 @@ impl Game {
                     return Err(Error::DailyDoubleWagerOutOfRange);
                 }
 
-                let answer = board.get_square(&location).answer.to_owned().to_string();
-
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
                 GameState::WaitingForAnswer {
@@ -502,7 +694,6 @@ impl Game {
                     active_player: controller.clone(),
                     controller: controller.clone(),
                     value: wager,
-                    answer,
                 }
             }
 
@@ -524,7 +715,6 @@ impl Game {
                 }
 
                 let value = board.get_square_value(&location);
-                let answer = board.get_square(&location).answer.to_owned().to_string();
 
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
@@ -534,7 +724,6 @@ impl Game {
                     active_player: id,
                     controller: controller.clone(),
                     value,
-                    answer,
                 }
             }
 

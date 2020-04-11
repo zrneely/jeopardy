@@ -1,27 +1,27 @@
 #![allow(dead_code)]
 
-use std::{borrow::Cow, collections::HashMap, env, time::Duration};
+use std::{borrow::Cow, collections::HashMap, env, fmt, time::Duration};
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use log::*;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 use wamp_async::WampDict;
 
+#[macro_use]
+mod util;
+
 mod data;
 mod errors;
 mod game;
-#[macro_use]
-mod util;
 mod server;
 
 use errors::Error;
 
 lazy_static::lazy_static! {
-    static ref STATE: OnitamaState = OnitamaState {
+    static ref STATE: JeopardyState = JeopardyState {
         games: RwLock::new(HashMap::new()),
     };
 
@@ -39,16 +39,31 @@ const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
 const DATABASE_PATH: &str = "jeo_data_utf8.csv";
 
 /// A game's ID.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct GameId(Uuid);
+impl fmt::Display for GameId {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.0.to_hyphenated())
+    }
+}
 
 /// A player's auth token.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct AuthToken(Uuid);
+impl fmt::Display for AuthToken {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.0.to_hyphenated())
+    }
+}
 
 /// A player ID.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PlayerId(Uuid);
+impl fmt::Display for PlayerId {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.0.to_hyphenated())
+    }
+}
 
 /// A message to be sent (typically from an RPC invocation)
 #[derive(Debug)]
@@ -58,7 +73,7 @@ struct Message {
     kwargs: wamp_async::WampKwArgs,
 }
 
-struct OnitamaState {
+struct JeopardyState {
     // Use a double RwLock here so that when mutating a game, we can take a read lock
     // on the games instance, allowing multiple games to be mutated simultaneously. The only
     // time a write lock is needed on the outer HashMap is when new games are added or old ones are
@@ -66,7 +81,7 @@ struct OnitamaState {
     // which one to add to in order to further reduce the chance of lock contention.
     games: RwLock<HashMap<GameId, RwLock<game::Game>>>,
 }
-impl OnitamaState {
+impl JeopardyState {
     /// Deletes a game from the map. Will acquire the global game write lock.
     fn remove_game(&self, game: &GameId) -> Result<(), Error> {
         info!("removing game: {:?}", game);
@@ -101,6 +116,8 @@ impl OnitamaState {
     /// Gets the list of open games. Acquires the global game read lock, and each game's read lock
     /// as well.
     pub fn get_games(&self) -> Result<WampDict, Error> {
+        use wamp_async::Arg;
+
         let games = self
             .games
             .try_read_for(OPERATION_TIMEOUT)
@@ -111,17 +128,25 @@ impl OnitamaState {
             .filter_map(|(game_id, game)| {
                 let game = game.try_read_for(OPERATION_TIMEOUT)?;
 
-                Some(wamp_dict! {
-                    "game_id" => game_id,
-                    "moderator" => game.get_moderator_name().ok()?,
-                    "players" => game.get_player_names(),
-                })
+                let mut dict = wamp_dict! {
+                    "game_id" => game_id.to_string(),
+                    "moderator" => game.get_moderator_name().into(),
+                };
+                let players = Arg::List(
+                    game.get_player_names()
+                        .iter()
+                        .map(|name| Arg::String((*name).to_string()))
+                        .collect(),
+                );
+                dict.insert("players".to_string(), players);
+
+                Some(Arg::Dict(dict))
             })
             .collect::<Vec<_>>();
 
-        Ok(wamp_dict! {
-            "games" => games,
-        })
+        let mut result = WampDict::new();
+        result.insert("games".to_string(), Arg::List(games));
+        Ok(result)
     }
 
     pub fn add_player(
@@ -171,9 +196,7 @@ impl OnitamaState {
                 .send(Message {
                     topic: Cow::Owned(game.moderator_state_channel.clone()),
                     args: None,
-                    kwargs: Some(wamp_dict! {
-                        "state" => moderator_state,
-                    }),
+                    kwargs: Some(moderator_state),
                 })
                 .unwrap();
 
@@ -183,9 +206,7 @@ impl OnitamaState {
                 .send(Message {
                     topic: Cow::Owned(game.player_state_channel.clone()),
                     args: None,
-                    kwargs: Some(wamp_dict! {
-                        "state" => player_state,
-                    }),
+                    kwargs: Some(player_state),
                 })
                 .unwrap();
 
@@ -198,14 +219,6 @@ impl OnitamaState {
 
         Ok(())
     }
-}
-
-/// A chat message displayed to the players.
-#[derive(Debug, Clone, Serialize)]
-struct ChatMessage {
-    player: Option<game::Player>, // if none, system message
-    time: DateTime<Utc>,
-    text: String,
 }
 
 #[tokio::main]

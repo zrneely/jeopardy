@@ -3,18 +3,18 @@ const webpack = require('webpack');
 
 module.exports = {
     devtool: 'source-map',
-    entry: './index.ts',
+    entry: './index.tsx',
     module: {
         rules: [
             {
-                test: /\.ts$/,
+                test: /\.ts|\.tsx$/,
                 use: 'ts-loader',
-                exclude: /node_modules/,
+                include: __dirname,
             },
         ],
     },
     resolve: {
-        extensions: ['.ts', '.js'],
+        extensions: ['.tsx', '.jsx', '.ts', '.js'],
         alias: {
             autobahn: path.resolve(__dirname, 'node_modules/autobahn-browser'),
         },
