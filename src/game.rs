@@ -16,6 +16,8 @@ const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
     categories: Vec::new(),
     daily_doubles: Vec::new(),
     value_multiplier: 0,
+    etag: 0,
+    id: 0,
 };
 
 // Raw counts: 10, 433, 998, 1433, 945
@@ -87,8 +89,8 @@ impl Location {
 
     fn serialize(&self) -> WampDict {
         let mut result = WampDict::new();
-        result.insert("category".into(), Arg::String(self.category.to_string()));
-        result.insert("row".into(), Arg::String(self.row.to_string()));
+        result.insert("category".into(), Arg::Integer(self.category));
+        result.insert("row".into(), Arg::Integer(self.row));
         result
     }
 }
@@ -98,6 +100,16 @@ struct JeopardyBoard {
     categories: Vec<Category>,
     daily_doubles: Vec<Location>,
     value_multiplier: i64, // base values are "1, 2, 3, ..." going down a column
+
+    // Helpful for change tracking on the client. The etag
+    // is internal to the board, and is incremented whenever
+    // anything changes. The ID, on the other hand, is a global
+    // counter per game which is incremented whenever an
+    // entirely new board is created. The tuple (etag, id)
+    // should be able to perfectly identify a board state
+    // within a game.
+    etag: usize,
+    id: usize,
 }
 impl JeopardyBoard {
     fn get_square(&self, location: &Location) -> &Square {
@@ -105,6 +117,7 @@ impl JeopardyBoard {
     }
 
     fn get_square_mut(&mut self, location: &Location) -> &mut Square {
+        self.etag += 1;
         &mut self.categories[location.category].squares[location.row]
     }
 
@@ -127,6 +140,8 @@ impl JeopardyBoard {
             "value_multiplier".into(),
             Arg::String(self.value_multiplier.to_string()),
         );
+
+        result.insert("etag".into(), Arg::Integer(self.etag));
 
         result.insert(
             "categories".into(),
@@ -460,6 +475,7 @@ pub struct Game {
     moderator: Player,
     players: HashMap<PlayerId, Player>,
     state: GameState,
+    next_board_id: usize,
 
     pub time_started: DateTime<Utc>,
     pub moderator_state_channel: String,
@@ -475,6 +491,7 @@ impl Game {
             moderator,
             players: HashMap::new(),
             state: GameState::NoBoard,
+            next_board_id: 0,
 
             time_started: Utc::now(),
             moderator_state_channel: format!("jpdy.chan.{}", Uuid::new_v4().to_hyphenated()),
@@ -560,8 +577,14 @@ impl Game {
         daily_double_count: usize,
         categories: usize,
     ) -> Result<(), Error> {
+        self.next_board_id += 1;
         let board = self
-            .make_random_board(multiplier, daily_double_count, categories)
+            .make_random_board(
+                multiplier,
+                daily_double_count,
+                categories,
+                self.next_board_id,
+            )
             .ok_or(Error::TooManyDailyDoubles)?;
 
         let new_state = match &self.state {
@@ -611,6 +634,7 @@ impl Game {
         multiplier: i64,
         daily_double_count: usize,
         category_count: usize,
+        id: usize,
     ) -> Option<Box<JeopardyBoard>> {
         let categories = (0..category_count)
             .map(|_| self.get_random_category())
@@ -620,6 +644,8 @@ impl Game {
             categories,
             value_multiplier: multiplier,
             daily_doubles: Location::gen_random_locations(daily_double_count, category_count)?,
+            etag: 0,
+            id,
         }))
     }
 

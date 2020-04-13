@@ -1,13 +1,14 @@
 ///<reference types="autobahn" />
 ///<reference types="react" />
-///<reference path="common.tsx" />
 
 import autobahn from 'autobahn';
 import React from 'react';
 
+import { ServerData, handleError } from './common';
+
 const LOBBY_CHANNEL = "jpdy.chan.lobby";
 
-export interface LobbyState {
+interface LobbyState {
     openGames: ServerData.OpenGame[] | null,
     selectedGame: string | null,
 }
@@ -42,7 +43,7 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
                 openGames: result.kwargs['games'],
             });
         }, (error: any) => {
-            handleError('initial open games request failed', error);
+            handleError('initial open games request failed', error, false);
         });
 
         this.props.session.subscribe(LOBBY_CHANNEL, (_, kwargs) => {
@@ -53,7 +54,7 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
         }).then((subscription) => {
             this.subscription = subscription;
         }, (error: any) => {
-            handleError('subscription to lobby channel failed', error);
+            handleError('subscription to lobby channel failed', error, false);
         });
     }
 

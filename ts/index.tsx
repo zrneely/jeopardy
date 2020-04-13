@@ -7,16 +7,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import { Lobby } from './lobby';
+import { Game } from './game';
+import { GameJoinInfo, handleError } from './common';
 
 const WAMP_REALM = "jpdy";
 const LS_KEY_CUR_GAME = "curGame";
-
-interface GameJoinInfo {
-  gameId: string,
-  playerId: string,
-  token: string,
-  channel: string,
-}
 
 interface JeopardyProps {
   routerUrl: string,
@@ -24,13 +19,13 @@ interface JeopardyProps {
 
 interface JeopardyState {
   session: autobahn.Session | null,
-  current_game_data: GameJoinInfo | null,
+  currentJoinInfo: GameJoinInfo | null,
 }
 
 class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   state: JeopardyState = {
     session: null,
-    current_game_data: null,
+    currentJoinInfo: null,
   };
 
   connection: autobahn.Connection | null = null;
@@ -40,13 +35,14 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
     this.joinGame = this.joinGame.bind(this);
     this.makeGame = this.makeGame.bind(this);
+    this.leaveGame = this.leaveGame.bind(this);
   }
 
   componentDidMount() {
     const existingGameData = localStorage.getItem(LS_KEY_CUR_GAME);
     if (existingGameData !== null) {
       this.setState({
-        current_game_data: JSON.parse(existingGameData),
+        currentJoinInfo: JSON.parse(existingGameData),
       });
     }
 
@@ -95,10 +91,16 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(game));
 
       this.setState({
-        current_game_data: game,
+        currentJoinInfo: game,
       });
     }, (error) => {
-      handleError('join game failed', error);
+      handleError('join game failed', error, true);
+    });
+  }
+
+  leaveGame() {
+    this.setState({
+      currentJoinInfo: null,
     });
   }
 
@@ -124,10 +126,10 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(game));
 
       this.setState({
-        current_game_data: game,
+        currentJoinInfo: game,
       });
     }, (error) => {
-      handleError('new game creation failed', error);
+      handleError('new game creation failed', error, true);
     });
   }
 
@@ -135,40 +137,21 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     if (this.state.session === null) {
       return <div className="no-connection-msg">Connecting...</div>;
     }
-    else if (this.state.current_game_data === null) {
+    else if (this.state.currentJoinInfo === null) {
       // We're in the lobby
-      return <Lobby session={this.state.session} makeGameCallback={this.makeGame} joinGameCallback={this.joinGame} />;
+      return <Lobby
+        session={this.state.session}
+        makeGameCallback={this.makeGame}
+        joinGameCallback={this.joinGame} />;
     } else {
-      return <h4>WIP</h4>;
+      // We're in a game
+      return <Game
+        session={this.state.session}
+        joinInfo={this.state.currentJoinInfo}
+        leaveGameCallback={this.leaveGame} />
     }
   }
 }
-
-// // Join a game. Note that the game data must include a game ID and auth token, so we're already "in
-// // the game" according to the server. This just sets up the UI and subscriptions.
-// function joinGame(session: autobahn.Session, game: GameJoinInfo) {
-//   // Request the initial game state and subscribe to the update channel
-//   let requestPromise = session.call<autobahn.Result>('jpdy.game_state', [], {
-//     'game_id': game.gameId,
-//     'player_id': game.playerId,
-//     'auth': game.token,
-//   });
-//   let stateSubscribePromise = session.subscribe(game.channel, (_, update) => {
-//     handleStateUpdate(update.kwargs);
-//   });
-
-//   Promise.all([
-//     requestPromise,
-//     stateSubscribePromise,
-//   ]).then((value) => {
-//     console.log('game subscriptions open');
-//     GLOBAL_STATE.lobbySubscription = null;
-//     handleStateUpdate(value[0].kwargs);
-//   }, (error) => {
-//     localStorage.clear();
-//     handleError('game subscription/setup failed', error);
-//   });
-// };
 
 ReactDOM.render(
   <Jeopardy routerUrl="ws://127.0.0.1:8080/ws" />,
