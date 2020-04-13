@@ -23,7 +23,9 @@ body {
 div.no-connection-msg {
     width: 100%;
     height: 100%;
-    text-align: center;
+    justify-content: center;
+    align-items: center;
+    display: flex;
     line-height: 100%;
 }
 

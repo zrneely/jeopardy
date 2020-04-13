@@ -49,6 +49,8 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     this.connection = new autobahn.Connection({
       url: this.props.routerUrl,
       realm: WAMP_REALM,
+      max_retries: 3,
+      max_retry_delay: 15, // seconds
     });
 
     this.connection.onopen = (session) => {
