@@ -112,10 +112,6 @@ struct JeopardyBoard {
     id: usize,
 }
 impl JeopardyBoard {
-    fn get_square(&self, location: &Location) -> &Square {
-        &self.categories[location.category].squares[location.row]
-    }
-
     fn get_square_mut(&mut self, location: &Location) -> &mut Square {
         self.etag += 1;
         &mut self.categories[location.category].squares[location.row]
@@ -123,10 +119,6 @@ impl JeopardyBoard {
 
     fn get_square_value(&self, location: &Location) -> i64 {
         self.value_multiplier * (1 + (location.row as i64))
-    }
-
-    fn get_category_title(&self, category: usize) -> &str {
-        &self.categories[category].title
     }
 
     fn is_daily_double(&self, location: &Location) -> bool {
@@ -142,6 +134,7 @@ impl JeopardyBoard {
         );
 
         result.insert("etag".into(), Arg::Integer(self.etag));
+        result.insert("id".into(), Arg::Integer(self.id));
 
         result.insert(
             "categories".into(),
@@ -346,7 +339,8 @@ enum GameState {
     NoBoard,
     WaitingForSquareSelection {
         board: Box<JeopardyBoard>,
-        controller: PlayerId, // ID of whoever's controlling the board
+        // ID of whoever's controlling the board, or None if there are no players yet
+        controller: Option<PlayerId>,
     },
     WaitingForDailyDoubleWager {
         board: Box<JeopardyBoard>,
@@ -370,17 +364,19 @@ impl GameState {
     fn serialize_helper(
         result: &mut WampDict,
         board: &JeopardyBoard,
-        controller: &PlayerId,
+        controller: Option<&PlayerId>,
         for_moderator: bool,
     ) {
         result.insert("board".into(), Arg::Dict(board.serialize(for_moderator)));
-        result.insert("controller".into(), Arg::String(controller.to_string()));
+        if let Some(player_id) = controller {
+            result.insert("controller".into(), Arg::String(player_id.to_string()));
+        }
     }
 
     fn serialize_helper2(
         result: &mut WampDict,
         board: &JeopardyBoard,
-        controller: &PlayerId,
+        controller: Option<&PlayerId>,
         location: &Location,
         for_moderator: bool,
     ) {
@@ -401,7 +397,7 @@ impl GameState {
                     "type".into(),
                     Arg::String("WaitingForSquareSelection".into()),
                 );
-                GameState::serialize_helper(&mut result, board, controller, for_moderator);
+                GameState::serialize_helper(&mut result, board, controller.as_ref(), for_moderator);
             }
 
             GameState::WaitingForDailyDoubleWager {
@@ -416,7 +412,7 @@ impl GameState {
                 GameState::serialize_helper2(
                     &mut result,
                     board,
-                    controller,
+                    Some(controller),
                     location,
                     for_moderator,
                 );
@@ -434,7 +430,7 @@ impl GameState {
                 GameState::serialize_helper2(
                     &mut result,
                     board,
-                    controller,
+                    Some(controller),
                     location,
                     for_moderator,
                 );
@@ -454,7 +450,7 @@ impl GameState {
                 GameState::serialize_helper2(
                     &mut result,
                     board,
-                    controller,
+                    Some(controller),
                     location,
                     for_moderator,
                 );
@@ -568,6 +564,17 @@ impl Game {
         let id = PlayerId(Uuid::new_v4());
         info!("Adding player: {:?} => {}", id, player.name);
         self.players.insert(id.clone(), player);
+
+        // If we're currently in a WaitingForSquareSelection state and there's no controller,
+        // make this player the controller.
+        if let GameState::WaitingForSquareSelection {
+            controller: ref mut controller @ None,
+            ..
+        } = self.state
+        {
+            *controller = Some(id.clone());
+        }
+
         id
     }
 
@@ -593,13 +600,19 @@ impl Game {
                 GameState::WaitingForSquareSelection { board, controller }
             }
 
-            GameState::WaitingForSquareSelection { controller, .. }
-            | GameState::WaitingForAnswer { controller, .. }
+            GameState::WaitingForSquareSelection { controller, .. } => {
+                GameState::WaitingForSquareSelection {
+                    board,
+                    controller: controller.clone(),
+                }
+            }
+
+            GameState::WaitingForAnswer { controller, .. }
             | GameState::WaitingForDailyDoubleWager { controller, .. }
             | GameState::WaitingForBuzzer { controller, .. } => {
                 GameState::WaitingForSquareSelection {
                     board,
-                    controller: controller.clone(),
+                    controller: Some(controller.clone()),
                 }
             }
         };
@@ -608,7 +621,7 @@ impl Game {
         Ok(())
     }
 
-    fn get_random_player_with_lowest_score(&self) -> PlayerId {
+    fn get_random_player_with_lowest_score(&self) -> Option<PlayerId> {
         let mut lowest_score = i64::max_value();
         let mut group_with_lowest_score = Vec::with_capacity(self.players.len());
 
@@ -623,10 +636,7 @@ impl Game {
             }
         }
 
-        group_with_lowest_score
-            .choose(&mut thread_rng())
-            .unwrap()
-            .clone()
+        group_with_lowest_score.choose(&mut thread_rng()).cloned()
     }
 
     fn make_random_board(
@@ -662,7 +672,7 @@ impl Game {
         let new_state = match &mut self.state {
             GameState::WaitingForSquareSelection {
                 ref mut board,
-                controller,
+                controller: Some(controller),
             } => {
                 board.get_square_mut(&location).flip()?;
 
@@ -787,9 +797,9 @@ impl Game {
                 GameState::WaitingForSquareSelection {
                     board: new_board,
                     controller: if correct {
-                        active_player.clone()
+                        Some(active_player.clone())
                     } else {
-                        controller.clone()
+                        Some(controller.clone())
                     },
                 }
             }

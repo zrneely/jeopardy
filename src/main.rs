@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{borrow::Cow, collections::HashMap, env, fmt, time::Duration};
 
 use chrono::Utc;
@@ -147,29 +145,6 @@ impl JeopardyState {
         let mut result = WampDict::new();
         result.insert("games".to_string(), Arg::List(games));
         Ok(result)
-    }
-
-    pub fn add_player(
-        &self,
-        game_id: &GameId,
-        player_name: String,
-    ) -> Result<(PlayerId, AuthToken), Error> {
-        let games = self
-            .games
-            .try_read_for(OPERATION_TIMEOUT)
-            .ok_or(Error::LockTimeout)?;
-
-        let mut game = games
-            .get(game_id)
-            .ok_or(Error::UnknownGame)?
-            .try_write_for(OPERATION_TIMEOUT)
-            .ok_or(Error::LockTimeout)?;
-
-        let player = game::Player::new(player_name);
-        let auth_token = player.get_auth();
-        let id = game.add_player(player);
-
-        Ok((id, auth_token))
     }
 
     /// Broadcasts a state update for the given game. If that game is over, remove it from the map.
@@ -333,7 +308,6 @@ async fn main() {
     info!("RPCs registered!");
 
     while let Some(msg) = receiver.recv().await {
-        trace!("Publishing message: {:?}", msg);
         client
             .publish(msg.topic, msg.args, msg.kwargs, false)
             .await

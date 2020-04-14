@@ -123,7 +123,7 @@ pub async fn join_game(
         })
         .unwrap();
 
-    // Update the moderator.
+    // Update the players and moderator.
     STATE.broadcast_game_state_update(&game_id).await?;
 
     Ok((
@@ -283,7 +283,9 @@ pub async fn new_board(
     info!("new_board");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    trace!("new_board: {} {}", game_id, player_id);
     let multiplier: i64 = get_str_parse(kwargs.get("multiplier").ok_or(Error::BadArgument)?)?;
+    trace!("new_board: multiplier: {}", multiplier);
     let daily_doubles: usize =
         get_str_parse(kwargs.get("daily_doubles").ok_or(Error::BadArgument)?)?;
     let categories: usize = get_str_parse(kwargs.get("categories").ok_or(Error::BadArgument)?)?;

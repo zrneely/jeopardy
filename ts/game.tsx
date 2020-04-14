@@ -1,14 +1,8 @@
 import autobahn from 'autobahn';
 import React from 'react';
-import { GameJoinInfo, ServerData, handleError } from './common';
+import { GameJoinInfo, ServerData, handleError, Activity } from './common';
 import { Board } from './board';
-
-enum Activity {
-    Wait,
-    Buzz,               // player only
-    DailyDoubleWager,   // player only
-    EvaluateAnswer,     // moderator only
-}
+import { ModeratorControls } from './controls';
 
 interface GameState {
     isModerator: boolean,
@@ -16,6 +10,7 @@ interface GameState {
     board: ServerData.Board,
     players: { [player_id: string]: ServerData.Player },
     controller: string | null, // player ID
+    activePlayer: string | null, // player ID
 }
 
 export interface GameProps {
@@ -31,6 +26,7 @@ export class Game extends React.Component<GameProps, GameState> {
         board: this.getEmptyBoard(),
         players: {},
         controller: null,
+        activePlayer: null,
     }
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
@@ -40,6 +36,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
         this.loadNewState = this.loadNewState.bind(this);
         this.getEmptyBoard = this.getEmptyBoard.bind(this);
+        this.newBoardClicked = this.newBoardClicked.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -75,10 +72,10 @@ export class Game extends React.Component<GameProps, GameState> {
     getActivity(gameState: ServerData.RemoteGameState, isModerator: boolean): Activity {
         if (isModerator) {
             switch (gameState.type) {
-                case 'NoBoard': return Activity.Wait;
-                case 'WaitingForSquareSelection': return Activity.Wait;
-                case 'WaitingForBuzzer': return Activity.Wait;
-                case 'WaitingForDailyDoubleWager': return Activity.Wait;
+                case 'NoBoard': return Activity.Moderate;
+                case 'WaitingForSquareSelection': return Activity.Moderate;
+                case 'WaitingForBuzzer': return Activity.Moderate;
+                case 'WaitingForDailyDoubleWager': return Activity.Moderate;
                 case 'WaitingForAnswer': return Activity.EvaluateAnswer;
                 default: {
                     handleError('unknown game state', '', true);
@@ -104,7 +101,15 @@ export class Game extends React.Component<GameProps, GameState> {
         if (gameState.type === 'NoBoard') {
             return this.state.controller;
         } else {
-            return gameState.controller;
+            return gameState.controller || null;
+        }
+    }
+
+    getActivePlayer(gameState: ServerData.RemoteGameState): string | null {
+        if (gameState.type === 'WaitingForAnswer') {
+            return gameState.active_player;
+        } else {
+            return null;
         }
     }
 
@@ -131,6 +136,22 @@ export class Game extends React.Component<GameProps, GameState> {
             isModerator: update.is_moderator,
             players: update.players,
             controller: this.getController(update.state),
+            activePlayer: this.getActivePlayer(update.state),
+        });
+    }
+
+    newBoardClicked() {
+        this.props.session.call('jpdy.new_board', [], {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            multiplier: '400', // TODO
+            daily_doubles: '2', // TODO
+            categories: '6',
+        }).then(() => {
+            console.log('new board call succeeded!');
+        }, (error) => {
+            handleError('new board call failed', error, false);
         });
     }
 
@@ -144,7 +165,7 @@ export class Game extends React.Component<GameProps, GameState> {
         let stateSubscription = this.props.session.subscribe(
             this.props.joinInfo.channel,
             (_, update) => {
-                this.loadNewState(update.kwargs);
+                this.loadNewState(update);
             });
 
         Promise.all([
@@ -166,14 +187,30 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     render() {
+        let controllerName;
+        if (this.state.controller === null) {
+            controllerName = null;
+        } else {
+            controllerName = this.state.players[this.state.controller].name;
+        }
+
+        let activeName;
+        if (this.state.activePlayer === null) {
+            activeName = null;
+        } else {
+            activeName = this.state.players[this.state.activePlayer].name;
+        }
+
         return <div className="game">
-            <div className="gameLeftPanel">
+            <div className="game-left-panel">
                 <Board data={this.state.board} />
-                <div className="gameControls">
-                    TODO
-                </div>
+                <ModeratorControls
+                    activity={this.state.currentActivity}
+                    controllingPlayer={controllerName}
+                    activePlayer={activeName}
+                    newBoardClicked={this.newBoardClicked} />
             </div>
-            <div className="gameRightPanel">
+            <div className="game-right-panel">
                 TODO
             </div>
         </div>;

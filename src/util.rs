@@ -1,5 +1,3 @@
-use crate::GameId;
-
 #[macro_export]
 macro_rules! wamp_dict {
     { } => {
@@ -34,12 +32,4 @@ macro_rules! rpc_register {
             ::futures::future::join_all(results)
         }
     };
-}
-
-pub(crate) fn get_state_channel(game_id: &GameId) -> String {
-    format!("jpdy.chan.game.{}.sys", game_id.0.to_hyphenated())
-}
-
-pub(crate) fn get_chat_channel(game_id: &GameId) -> String {
-    format!("jpdy.chan.game.{}.chat", game_id.0.to_hyphenated())
 }

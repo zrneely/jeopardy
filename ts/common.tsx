@@ -14,6 +14,14 @@ export interface GameJoinInfo {
     channel: string,
 }
 
+export enum Activity {
+    Wait,
+    Moderate,
+    Buzz,               // player only
+    DailyDoubleWager,   // player only
+    EvaluateAnswer,     // moderator only
+}
+
 // Types that come from the server
 export namespace ServerData {
     export interface OpenGame {
@@ -71,7 +79,7 @@ export namespace ServerData {
     export interface WaitingForSquareSelection {
         type: 'WaitingForSquareSelection',
         board: Board,
-        controller: string,
+        controller: string | undefined,
     }
 
     export interface WaitingForDailyDoubleWager {

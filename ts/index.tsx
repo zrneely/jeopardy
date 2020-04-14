@@ -78,8 +78,8 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
     console.log(`joining game ${gameId}`);
     this.state.session.call<autobahn.Result>('jpdy.join', [], {
-      'player_name': playerName,
-      'game_id': gameId,
+      player_name: playerName,
+      game_id: gameId,
     }).then((result) => {
       console.log(`join result: ${JSON.stringify(result.kwargs)}`);
 
@@ -114,7 +114,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
     console.log('making game');
     this.state.session.call<autobahn.Result>('jpdy.new_game', [], {
-      'player_name': playerName,
+      player_name: playerName,
     }).then((result) => {
       console.log(`new_game result: ${JSON.stringify(result.kwargs)}`);
 
