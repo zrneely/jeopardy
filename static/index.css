@@ -17,7 +17,7 @@ body {
 #root {
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow-y: scroll;
 }
 
 div.no-connection-msg {
@@ -60,38 +60,89 @@ div.no-connection-msg {
 }
 
 div.game {
-    padding: 5px;
     user-select: none;
     display: flex;
-    flex-direction: row; /* left and right in a single row */
+    flex-direction: row;
     align-items: stretch;
     height: 100%;
 }
 div.game-left-panel {
-    flex: 1;
+    flex: 3;
 
     display: flex;
-    flex-direction: column; /* board and controls in a single column */
+    flex-direction: column;
     align-items: stretch;
 }
 div.game-right-panel {
-    flex: 1;
+    flex: 2;
 
     display: flex;
-    padding: 5px;
+    padding-left: 5px;
     /* TODO */
 }
 div.moderator-controls {
-    flex: 1;
+    flex: 2;
 
     display: flex;
-    /* TODO */
+    margin: 5px;
+    justify-content: center;
+    align-items: center;
 }
-div.board {
+div.moderator-controls-inner {
+    display: flex;
+    flex-direction: row;
+    width: 80%;
+    height: 80%;
+}
+div.answer-eval-buttons {
     flex: 1;
 
     display: flex;
-    flex-direction: row; /* a single row of categories */
+    flex-direction: column;
+}
+button.eval-button-correct {
+    flex: 1;
+    background-color: green;
+    color: white;
+    border: 2px solid black;
+    margin: 10px;
+}
+button.eval-button-correct[disabled] {
+    background-color: gray;
+}
+button.eval-button-incorrect {
+    flex: 1;
+    background-color: darkred;
+    color: white;
+    border: 2px solid black;
+    margin: 10px;
+}
+button.eval-button-incorrect[disabled] {
+    background-color: gray;
+}
+button.new-board-button {
+    flex: 1;
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+ul.current-stats {
+    flex: 1;
+    font-size: small;
+    list-style-type: none;
+    font-family: sans-serif;
+    padding-left: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+
+div.board {
+    flex: 3;
+
+    display: flex;
+    flex-direction: row;
     flex-wrap: nowrap;
     height: 100%;
     margin: 5px;
@@ -103,7 +154,7 @@ div.category {
     flex: 1;
 
     display: flex;
-    flex-direction: column; /* a single column of squares */
+    flex-direction: column;
     flex-wrap: nowrap;
     height: 100%;
 }
@@ -115,6 +166,7 @@ div.category-title {
     padding: 5px;
     display: flex;
     justify-content: center;
+    text-align: center;
     align-items: center;
     color: var(--category-title-color);
     font-family: var(--card-font);
