@@ -449,9 +449,11 @@ dependencies = [
  "itertools",
  "lazy_static",
  "log",
+ "memorable-wordlist",
  "once_cell",
  "parking_lot",
  "rand 0.7.3",
+ "rand_chacha",
  "serde",
  "tokio",
  "uuid",
@@ -509,6 +511,15 @@ name = "memchr"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3728d817d99e5ac407411fa471ff9800a778d88a24685968b36824eaf4bee400"
+
+[[package]]
+name = "memorable-wordlist"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a89c00d4c9dd14cc2dce41d39c4b378f09fca6615cf9d26f7632d1575f53d32e"
+dependencies = [
+ "rand 0.7.3",
+]
 
 [[package]]
 name = "mio"

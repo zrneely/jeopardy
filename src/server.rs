@@ -6,7 +6,8 @@ use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
 use crate::{
     errors::Error,
     game::{Location, Player, PlayerType, SquareState},
-    AuthToken, GameId, Message, PlayerId, GAME_LOBBY_CHANNEL, MSG_QUEUE, OPERATION_TIMEOUT, STATE,
+    AuthToken, GameId, Message, PlayerId, Seed, GAME_LOBBY_CHANNEL, MSG_QUEUE, OPERATION_TIMEOUT,
+    STATE,
 };
 
 fn get_str_parse<T: std::str::FromStr>(arg: &Arg) -> Result<T, Error> {
@@ -289,6 +290,11 @@ pub async fn new_board(
     let daily_doubles: usize =
         get_str_parse(kwargs.get("daily_doubles").ok_or(Error::BadArgument)?)?;
     let categories: usize = get_str_parse(kwargs.get("categories").ok_or(Error::BadArgument)?)?;
+    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
+        arg.parse().map_err(|_| Error::BadArgument)?
+    } else {
+        Seed::new_random()
+    };
 
     {
         let games = STATE
@@ -306,7 +312,7 @@ pub async fn new_board(
             game.auth_and_get_player_type(&player_id, &auth),
             Some(PlayerType::Moderator)
         ) {
-            game.load_new_board(multiplier, daily_doubles, categories)?;
+            game.load_new_board(multiplier, daily_doubles, categories, seed)?;
         } else {
             return Err(Error::NotAllowed.into());
         }

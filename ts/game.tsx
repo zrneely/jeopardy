@@ -61,11 +61,12 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         return {
-            value_multiplier: '200',
+            value_multiplier: '1',
             categories: categories,
             daily_doubles: [],
             etag: 0,
             id: 0,
+            seed: '',
         };
     }
 
@@ -208,6 +209,7 @@ export class Game extends React.Component<GameProps, GameState> {
                     activity={this.state.currentActivity}
                     controllingPlayer={controllerName}
                     activePlayer={activeName}
+                    seed={this.state.board.seed}
                     newBoardClicked={this.newBoardClicked} />
             </div>
             <div className="game-right-panel">

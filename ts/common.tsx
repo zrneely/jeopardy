@@ -65,6 +65,7 @@ export namespace ServerData {
         daily_doubles: BoardLocation[] | undefined,
         etag: number,
         id: number,
+        seed: string,
     }
 
     export interface BoardLocation {

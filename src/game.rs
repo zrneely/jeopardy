@@ -2,11 +2,11 @@ use std::{borrow::Cow, collections::HashMap, convert::TryInto, fmt};
 
 use chrono::{DateTime, Utc};
 use log::*;
-use rand::{seq::SliceRandom, thread_rng, Rng};
+use rand::{seq::SliceRandom, Rng, SeedableRng};
 use uuid::Uuid;
 use wamp_async::{Arg, WampDict};
 
-use crate::{errors::Error, AuthToken, PlayerId, CATEGORIES};
+use crate::{errors::Error, AuthToken, PlayerId, Seed, CATEGORIES};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
 const MIN_MAX_DAILY_DOUBLE_WAGER: i64 = 1000;
@@ -18,6 +18,7 @@ const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
     value_multiplier: 0,
     etag: 0,
     id: 0,
+    seed: Seed { value: 0 },
 };
 
 // Raw counts: 10, 433, 998, 1433, 945
@@ -35,7 +36,11 @@ impl Location {
 
     // Uses the algorithm by Efraimidis and Spirakis from this paper:
     // https://utopia.duth.gr/~pefraimi/research/data/2007EncOfAlg.pdf
-    pub fn gen_random_locations(n: usize, categories: usize) -> Option<Vec<Self>> {
+    pub fn gen_random_locations<R: Rng>(
+        rng: &mut R,
+        n: usize,
+        categories: usize,
+    ) -> Option<Vec<Self>> {
         if n > (categories * CATEGORY_HEIGHT) {
             return None;
         }
@@ -51,14 +56,14 @@ impl Location {
             key: f64,
         }
 
-        fn new_item(data: usize, weight: f64) -> Item {
-            let u: f64 = thread_rng().gen();
+        let mut new_item = |data: usize, weight: f64| {
+            let u: f64 = rng.gen();
             Item {
                 data,
                 weight,
                 key: u.powf(1.0 / weight),
             }
-        }
+        };
 
         let candidates = {
             let mut candidates: Vec<Item> = Vec::with_capacity(categories * CATEGORY_HEIGHT);
@@ -110,6 +115,8 @@ struct JeopardyBoard {
     // within a game.
     etag: usize,
     id: usize,
+
+    seed: Seed,
 }
 impl JeopardyBoard {
     fn get_square_mut(&mut self, location: &Location) -> &mut Square {
@@ -135,6 +142,7 @@ impl JeopardyBoard {
 
         result.insert("etag".into(), Arg::Integer(self.etag));
         result.insert("id".into(), Arg::Integer(self.id));
+        result.insert("seed".into(), Arg::String(self.seed.to_string()));
 
         result.insert(
             "categories".into(),
@@ -583,6 +591,7 @@ impl Game {
         multiplier: i64,
         daily_double_count: usize,
         categories: usize,
+        seed: Seed,
     ) -> Result<(), Error> {
         self.next_board_id += 1;
         let board = self
@@ -591,6 +600,7 @@ impl Game {
                 daily_double_count,
                 categories,
                 self.next_board_id,
+                seed,
             )
             .ok_or(Error::TooManyDailyDoubles)?;
 
@@ -636,7 +646,9 @@ impl Game {
             }
         }
 
-        group_with_lowest_score.choose(&mut thread_rng()).cloned()
+        group_with_lowest_score
+            .choose(&mut rand::thread_rng())
+            .cloned()
     }
 
     fn make_random_board(
@@ -645,27 +657,30 @@ impl Game {
         daily_double_count: usize,
         category_count: usize,
         id: usize,
+        seed: Seed,
     ) -> Option<Box<JeopardyBoard>> {
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(seed.to_seed());
+
         let categories = (0..category_count)
-            .map(|_| self.get_random_category())
+            .map(|_| self.get_random_category(&mut rng))
             .collect();
 
         Some(Box::new(JeopardyBoard {
             categories,
             value_multiplier: multiplier,
-            daily_doubles: Location::gen_random_locations(daily_double_count, category_count)?,
+            daily_doubles: Location::gen_random_locations(
+                &mut rng,
+                daily_double_count,
+                category_count,
+            )?,
             etag: 0,
             id,
+            seed,
         }))
     }
 
-    fn get_random_category(&self) -> Category {
-        CATEGORIES
-            .get()
-            .unwrap()
-            .choose(&mut thread_rng())
-            .unwrap()
-            .clone()
+    fn get_random_category<R: Rng>(&self, rng: &mut R) -> Category {
+        CATEGORIES.get().unwrap().choose(rng).unwrap().clone()
     }
 
     pub(crate) fn select_square(&mut self, location: &Location) -> Result<(), Error> {

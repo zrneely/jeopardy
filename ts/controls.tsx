@@ -5,6 +5,7 @@ interface ModeratorControlsProps {
     activity: Activity,
     controllingPlayer: string | null, // name, not ID
     activePlayer: string | null, // name, not ID
+    seed: string | null,
     newBoardClicked: () => void,
 }
 export class ModeratorControls extends React.Component<ModeratorControlsProps> {
@@ -15,6 +16,7 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps> {
             <ul>
                 <li>Player in control: {this.props.controllingPlayer}</li>
                 <li>Player currently answering: {this.props.activePlayer}</li>
+                <li>Board seed: {this.props.seed}</li>
             </ul>
             <button onClick={this.props.newBoardClicked}>New Board</button>
         </div>;
