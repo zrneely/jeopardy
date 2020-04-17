@@ -166,6 +166,8 @@ ul.current-stats {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+
+    overflow-y: auto;
 }
 .new-board-modal > h3 {
     margin: 0px;
@@ -183,8 +185,12 @@ fieldset.new-board-options {
 ul.new-board-options {
     list-style-type: none;
     padding-left: 0px;
+    margin: 0px;
+
+    display: flex;
+    flex-direction: column;
 }
-.new-board-options input[type="text"] {
+.new-board-options input {
     padding: 5px;
     border: 1px solid black;
     border-radius: 2px;
@@ -193,7 +199,13 @@ ul.new-board-options {
 .new-board-options li {
     font-size: smaller;
     margin: 0px;
-    margin-top: 5px;
+}
+li.board-option-label {
+    padding-bottom: 3px;
+    padding-top: 10px;
+}
+li.board-option-label:first-child {
+    padding-top: 3px;
 }
 
 div.board {

@@ -141,15 +141,20 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
-    newBoardClicked() {
-        this.props.session.call('jpdy.new_board', [], {
+    newBoardClicked(seed: string | null, dailyDoubles: number, multiplier: number) {
+        let argument: { [k: string]: string } = {
             game_id: this.props.joinInfo.gameId,
             player_id: this.props.joinInfo.playerId,
             auth: this.props.joinInfo.token,
-            multiplier: '400', // TODO
-            daily_doubles: '2', // TODO
+            multiplier: `${multiplier}`,
+            daily_doubles: `${dailyDoubles}`,
             categories: '6',
-        }).then(() => {
+        };
+        if (seed !== null) {
+            argument['seed'] = seed;
+        }
+
+        this.props.session.call('jpdy.new_board', [], argument).then(() => {
             console.log('new board call succeeded!');
         }, (error) => {
             handleError('new board call failed', error, false);

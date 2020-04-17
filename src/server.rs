@@ -284,17 +284,22 @@ pub async fn new_board(
     info!("new_board");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
-    trace!("new_board: {} {}", game_id, player_id);
     let multiplier: i64 = get_str_parse(kwargs.get("multiplier").ok_or(Error::BadArgument)?)?;
-    trace!("new_board: multiplier: {}", multiplier);
     let daily_doubles: usize =
         get_str_parse(kwargs.get("daily_doubles").ok_or(Error::BadArgument)?)?;
     let categories: usize = get_str_parse(kwargs.get("categories").ok_or(Error::BadArgument)?)?;
-    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
-        arg.parse().map_err(|_| Error::BadArgument)?
+    let seed: Seed = if let Some(Arg::Uri(arg)) = dbg!(kwargs.get("seed")) {
+        dbg!(arg.parse()).unwrap_or_else(|_| Seed::new_random())
     } else {
         Seed::new_random()
     };
+
+    trace!(
+        "new_board: multiplier: {}, daily doubles: {}, seed: {}",
+        multiplier,
+        daily_doubles,
+        seed
+    );
 
     {
         let games = STATE
