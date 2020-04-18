@@ -37,6 +37,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.loadNewState = this.loadNewState.bind(this);
         this.getEmptyBoard = this.getEmptyBoard.bind(this);
         this.newBoardClicked = this.newBoardClicked.bind(this);
+        this.boardSquareClicked = this.boardSquareClicked.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -47,7 +48,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
             for (let j = 0; j < 5; j++) {
                 squares.push({
-                    state: 'Normal',
+                    state: ServerData.SquareState.Normal,
                     clue: undefined,
                     answer: undefined,
                 });
@@ -161,6 +162,22 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    boardSquareClicked(location: ServerData.BoardLocation) {
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            category: location.category.toString(),
+            row: location.row.toString(),
+        };
+
+        this.props.session.call('jpdy.select_square', [], argument).then(() => {
+            console.log('select square call succeededd!');
+        }, (error) => {
+            handleError('select square call failed', error, false);
+        });
+    }
+
     componentDidMount() {
         let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
             'game_id': this.props.joinInfo.gameId,
@@ -209,7 +226,10 @@ export class Game extends React.Component<GameProps, GameState> {
 
         return <div className="game">
             <div className="game-left-panel">
-                <Board data={this.state.board} />
+                <Board
+                    data={this.state.board}
+                    isModerator={this.state.isModerator}
+                    squareClickedCallback={this.boardSquareClicked} />
                 <ModeratorControls
                     activity={this.state.currentActivity}
                     controllingPlayer={controllerName}

@@ -43,8 +43,14 @@ export namespace ServerData {
         is_moderator: boolean,
     }
 
+    export enum SquareState {
+        Normal = 'Normal',
+        Flipped = 'Flipped',
+        Finished = 'Finished',
+    }
+
     export interface Square {
-        state: string,
+        state: SquareState,
         clue: Clue | undefined,
         answer: string | undefined,
     }

@@ -4,15 +4,29 @@ import { ServerData } from './common'
 interface SquareProps {
     data: ServerData.Square,
     rowIndex: number,
-    categoryIndex: number,
     boardId: number,
     value: number,
+    squareClickedCallback: (row: number) => void,
 }
 class Square extends React.PureComponent<SquareProps> {
+    constructor(props: SquareProps) {
+        super(props);
+
+        this.handleSquareClicked = this.handleSquareClicked.bind(this);
+    }
+
+    handleSquareClicked() {
+        this.props.squareClickedCallback(this.props.rowIndex);
+    }
+
     render() {
-        return <div className="square">
-            <small>$</small>{this.props.value}
-        </div>;
+        if (this.props.data.state === ServerData.SquareState.Finished) {
+            return <div className="square">&nbsp;</div>;
+        } else {
+            return <div className="square" onClick={this.handleSquareClicked}>
+                <small>$</small>{this.props.value}
+            </div>;
+        }
     }
 }
 
@@ -21,8 +35,19 @@ interface CategoryProps {
     categoryIndex: number,
     boardId: number,
     multiplier: number,
+    squareClickedCallback: (category: number, row: number) => void,
 }
 class Category extends React.PureComponent<CategoryProps> {
+    constructor(props: CategoryProps) {
+        super(props);
+
+        this.handleSquareClicked = this.handleSquareClicked.bind(this);
+    }
+
+    handleSquareClicked(row: number) {
+        this.props.squareClickedCallback(this.props.categoryIndex, row);
+    }
+
     render() {
         let commentary;
         if (this.props.data.commentary !== undefined) {
@@ -42,10 +67,10 @@ class Category extends React.PureComponent<CategoryProps> {
                 return <Square
                     data={square}
                     rowIndex={idx}
-                    categoryIndex={this.props.categoryIndex}
                     boardId={this.props.boardId}
                     value={this.props.multiplier * (idx + 1)}
-                    key={(1000 * this.props.boardId) + idx} />;
+                    key={(1000 * this.props.boardId) + idx}
+                    squareClickedCallback={this.handleSquareClicked} />;
             })}
         </div>;
     }
@@ -53,9 +78,46 @@ class Category extends React.PureComponent<CategoryProps> {
 
 interface BoardProps {
     data: ServerData.Board,
+    isModerator: boolean,
+    squareClickedCallback: (location: ServerData.BoardLocation) => void,
 }
 export class Board extends React.PureComponent<BoardProps> {
+    constructor(props: BoardProps) {
+        super(props);
+
+        this.handleSquareClicked = this.handleSquareClicked.bind(this);
+    }
+
+    handleSquareClicked(category: number, row: number) {
+        this.props.squareClickedCallback({ row, category });
+    }
+
+    findFlippedSquare(): ServerData.Square | null {
+        for (let category of this.props.data.categories) {
+            for (let square of category.squares) {
+                if (square.state === ServerData.SquareState.Flipped) {
+                    return square;
+                }
+            }
+        }
+        return null;
+    }
+
     render() {
+        let activeSquare = this.findFlippedSquare();
+        let flipped: React.ReactElement | null = null;
+        if (activeSquare !== null) {
+            let answer = null;
+            if (this.props.isModerator) {
+                answer = <span>{JSON.stringify(activeSquare.answer)}</span>;
+            }
+
+            flipped = <div className="clue-panel">
+                {JSON.stringify(activeSquare.clue)}
+                {answer}
+            </div>;
+        }
+
         return <div className="board">
             {this.props.data.categories.map((category, idx) => {
                 return <Category
@@ -63,8 +125,10 @@ export class Board extends React.PureComponent<BoardProps> {
                     categoryIndex={idx}
                     boardId={this.props.data.id}
                     multiplier={+this.props.data.value_multiplier}
-                    key={(1000 * this.props.data.id) + idx} />;
+                    key={(1000 * this.props.data.id) + idx}
+                    squareClickedCallback={this.handleSquareClicked} />;
             })}
+            {flipped}
         </div>;
     }
 }
