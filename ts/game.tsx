@@ -76,8 +76,8 @@ export class Game extends React.Component<GameProps, GameState> {
             switch (gameState.type) {
                 case 'NoBoard': return Activity.Moderate;
                 case 'WaitingForSquareSelection': return Activity.Moderate;
-                case 'WaitingForBuzzer': return Activity.Moderate;
-                case 'WaitingForDailyDoubleWager': return Activity.Moderate;
+                case 'WaitingForBuzzer': return Activity.WaitForBuzz;
+                case 'WaitingForDailyDoubleWager': return Activity.EvaluateAnswer;
                 case 'WaitingForAnswer': return Activity.EvaluateAnswer;
                 default: {
                     handleError('unknown game state', '', true);

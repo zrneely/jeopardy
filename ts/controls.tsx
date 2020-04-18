@@ -134,9 +134,16 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
 
                 break;
             }
+
+            case Activity.WaitForBuzz: {
+                activityString = 'Wait for a player to buzz, or skip the question.';
+                break;
+            }
+
             case Activity.EvaluateAnswer: {
                 activityString = 'Wait for the active player to give an answer, then click ' +
                     'correct or incorrect.';
+                break;
             }
         }
 

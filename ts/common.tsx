@@ -18,6 +18,7 @@ export interface GameJoinInfo {
 export enum Activity {
     Wait,
     Moderate,
+    WaitForBuzz,
     Buzz,               // player only
     DailyDoubleWager,   // player only
     EvaluateAnswer,     // moderator only

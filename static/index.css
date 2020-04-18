@@ -215,7 +215,8 @@ div.board {
     flex-wrap: nowrap;
     height: 100%;
     margin: 5px;
-    box-shadow: 0px 0px 5 rgba(0, 0, 0, 0.4);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.4);
+    position: relative;
 
     background: var(--jeopardy-blue);
     border: 2px solid black;
@@ -261,4 +262,23 @@ div.square {
     font-weight: bolder;
     text-shadow: 2px 2px black;
     white-space: nowrap;
+}
+
+div.clue-panel {
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    width: 90%;
+    height: 90%;
+
+    border: 2px solid black;
+    color: white;
+    font-family: "ITC Korinna", serif;
+    background-color: var(--jeopardy-blue);
+
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    text-shadow: 2px 2px black;
 }
