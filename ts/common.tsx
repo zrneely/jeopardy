@@ -4,6 +4,7 @@ export function handleError(msg: string, error: any, clearData: boolean) {
 
     if (clearData) {
         localStorage.clear();
+        location.reload();
     }
 }
 

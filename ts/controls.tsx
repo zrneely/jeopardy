@@ -13,6 +13,7 @@ interface ModeratorControlsProps {
     controllingPlayer: string | null, // name, not ID
     activePlayer: string | null, // name, not ID
     seed: string | null,
+    isBoardLoaded: boolean,
     newBoardClicked: (seed: string | null, dailyDoubles: number, multiplier: number) => void,
 }
 interface ModeratorControlsState {
@@ -123,12 +124,19 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
         let activityString;
         switch (this.props.activity) {
             case Activity.Moderate: {
-                activityString = 'Ask the controlling player to select a square.';
+                if (this.props.controllingPlayer === null) {
+                    activityString = 'Wait for a player to join the game.';
+                } else if (!this.props.isBoardLoaded) {
+                    activityString = 'Press the new board button.';
+                } else {
+                    activityString = 'Ask the controlling player to select a square.';
+                }
+
                 break;
             }
             case Activity.EvaluateAnswer: {
-                activityString = 'Wait for the active player to give an answer, then click' +
-                    ' correct or incorrect.';
+                activityString = 'Wait for the active player to give an answer, then click ' +
+                    'correct or incorrect.';
             }
         }
 

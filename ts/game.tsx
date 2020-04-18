@@ -65,7 +65,7 @@ export class Game extends React.Component<GameProps, GameState> {
             categories: categories,
             daily_doubles: [],
             etag: 0,
-            id: 0,
+            id: -1,
             seed: '',
         };
     }
@@ -215,6 +215,7 @@ export class Game extends React.Component<GameProps, GameState> {
                     controllingPlayer={controllerName}
                     activePlayer={activeName}
                     seed={this.state.board.seed}
+                    isBoardLoaded={this.state.board.id !== -1}
                     newBoardClicked={this.newBoardClicked} />
             </div>
             <div className="game-right-panel">

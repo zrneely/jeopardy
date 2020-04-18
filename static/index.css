@@ -19,7 +19,6 @@ body {
 #root {
     width: 100%;
     height: 100%;
-    overflow-y: scroll;
 }
 
 button {
@@ -216,6 +215,7 @@ div.board {
     flex-wrap: nowrap;
     height: 100%;
     margin: 5px;
+    box-shadow: 0px 0px 5 rgba(0, 0, 0, 0.4);
 
     background: var(--jeopardy-blue);
     border: 2px solid black;
