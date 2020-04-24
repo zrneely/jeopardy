@@ -1,4 +1,5 @@
 import React from 'react';
+import { CSSTransition } from 'react-transition-group';
 import { ServerData } from './common'
 
 interface SquareProps {
@@ -105,17 +106,19 @@ export class Board extends React.PureComponent<BoardProps> {
 
     render() {
         let activeSquare = this.findFlippedSquare();
-        let flipped: React.ReactElement | null = null;
+        let cluePanelContent: React.ReactElement;
         if (activeSquare !== null) {
             let answer = null;
             if (this.props.isModerator) {
                 answer = <span>{JSON.stringify(activeSquare.answer)}</span>;
             }
 
-            flipped = <div className="clue-panel">
+            cluePanelContent = <div className="clue-panel">
                 {JSON.stringify(activeSquare.clue)}
                 {answer}
-            </div>;
+            </ div>;
+        } else {
+            cluePanelContent = <div className="clue-panel"></div>;
         }
 
         return <div className="board">
@@ -128,7 +131,13 @@ export class Board extends React.PureComponent<BoardProps> {
                     key={(1000 * this.props.data.id) + idx}
                     squareClickedCallback={this.handleSquareClicked} />;
             })}
-            {flipped}
+            <CSSTransition
+                in={activeSquare !== null}
+                timeout={500} // milliseconds
+                classNames="clue-panel">
+
+                {cluePanelContent}
+            </CSSTransition>
         </div>;
     }
 }

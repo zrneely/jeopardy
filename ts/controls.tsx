@@ -149,105 +149,118 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
 
         return <div className="moderator-controls">
             <div className="moderator-controls-inner">
-                <div className="answer-eval-buttons">
+                <div className="moderator-controls-column">
                     <button
                         disabled={this.props.activity !== Activity.EvaluateAnswer}
                         className="eval-button-correct">
                         Correct
                     </button>
+                    <div className="current-stats-group">
+                        <p>{activityString}</p>
+                        <p>Board Seed: <pre>{this.props.seed}</pre></p>
+                    </div>
+                </div>
+                <div className="moderator-controls-column">
                     <button
                         disabled={this.props.activity !== Activity.EvaluateAnswer}
                         className="eval-button-incorrect">
                         Inorrect
                     </button>
-                </div>
-                <button onClick={this.handleOpenNewGameModal} className="new-board-button">
-                    New Board...
-                </button>
-                <ul className="current-stats">
-                    <li>{activityString}</li>
-                    <li>Control: {this.props.controllingPlayer}</li>
-                    <li>Active: {this.props.activePlayer}</li>
-                    <li>Board Seed: <pre>{this.props.seed}</pre></li>
-                </ul>
-
-                <ReactModal
-                    isOpen={this.state.newGameModalOpen}
-                    onRequestClose={this.handleCloseNewGameModal}
-                    shouldCloseOnEsc={true}
-                    shouldCloseOnOverlayClick={true}
-                    shouldFocusAfterRender={true}
-                    ariaHideApp={false}
-                    className="new-board-modal"
-                    contentLabel="New Board...">
-
-                    <h3>Are you sure you want to load a new board?</h3>
-
-                    <fieldset className="new-board-options">
-                        <legend>Options</legend>
-                        <form onSubmit={this.handleSubmitNewGameModal}>
-                            <ul className="new-board-options">
-                                <li className="board-option-label">
-                                    Seed (three words, or leave blank for random):
-                            </li>
-                                <li>
-                                    <input type="text" ref={this.newBoardSeedInputs[0]} />
-                                    <input type="text" ref={this.newBoardSeedInputs[1]} />
-                                    <input type="text" ref={this.newBoardSeedInputs[2]} />
-                                </li>
-                                <li className="board-option-label">
-                                    Daily Doubles:
-                            </li>
-                                <li>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="30"
-                                        defaultValue="2"
-                                        ref={this.newBoardDailyDoubleInput} />
-                                </li>
-                                <li className="board-option-label">
-                                    Board Type:
-                            </li>
-                                <li>
-                                    <input
-                                        type="radio"
-                                        name="board-type"
-                                        id="board-type-normal"
-                                        value={BoardType.Normal}
-                                        onChange={this.handleBoardTypeChanged}
-                                        checked={this.state.selectedBoardType == BoardType.Normal} />
-                                    <label htmlFor="board-type-normal">Single Jeopardy</label>
-                                    <br />
-                                    <input
-                                        type="radio"
-                                        name="board-type"
-                                        id="board-type-double-jeopardy"
-                                        value={BoardType.DoubleJeopardy}
-                                        onChange={this.handleBoardTypeChanged}
-                                        checked={this.state.selectedBoardType == BoardType.DoubleJeopardy} />
-                                    <label htmlFor="board-type-double-jeopardy">Double Jeopardy</label>
-                                    <br />
-                                    <input
-                                        type="radio"
-                                        name="board-type"
-                                        id="board-type-final-jeopardy"
-                                        value={BoardType.FinalJeopardy}
-                                        onChange={this.handleBoardTypeChanged}
-                                        checked={this.state.selectedBoardType == BoardType.FinalJeopardy} />
-                                    <label htmlFor="board-type-final-jeopardy">Final Jeopardy</label>
-                                </li>
-                            </ul>
-                        </form>
-                    </fieldset>
-
-                    <div className="bottom-buttons">
-                        <button onClick={this.handleCloseNewGameModal} type="button">Cancel</button>
-                        <button onClick={this.handleSubmitNewGameModal} type="submit">Submit</button>
+                    <div className="current-stats-group">
+                        <p>Control: {this.props.controllingPlayer}</p>
+                        <p>Active: {this.props.activePlayer}</p>
                     </div>
-
-                </ReactModal>
+                </div>
+                <div className="moderator-controls-column">
+                    <button
+                        disabled={this.props.activity !== Activity.EvaluateAnswer}
+                        className="eval-button-skip">
+                        Skip
+                    </button>
+                    <div className="current-stats-group">
+                        <button onClick={this.handleOpenNewGameModal} className="new-board-button">
+                            New Board...
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            <ReactModal
+                isOpen={this.state.newGameModalOpen}
+                onRequestClose={this.handleCloseNewGameModal}
+                shouldCloseOnEsc={true}
+                shouldCloseOnOverlayClick={true}
+                shouldFocusAfterRender={true}
+                ariaHideApp={false}
+                className="new-board-modal"
+                contentLabel="New Board...">
+
+                <h3>Are you sure you want to load a new board?</h3>
+
+                <fieldset className="new-board-options">
+                    <legend>Options</legend>
+                    <form onSubmit={this.handleSubmitNewGameModal}>
+                        <ul className="new-board-options">
+                            <li className="board-option-label">
+                                Seed (three words, or leave blank for random):
+                            </li>
+                            <li>
+                                <input type="text" ref={this.newBoardSeedInputs[0]} />
+                                <input type="text" ref={this.newBoardSeedInputs[1]} />
+                                <input type="text" ref={this.newBoardSeedInputs[2]} />
+                            </li>
+                            <li className="board-option-label">
+                                Daily Doubles:
+                            </li>
+                            <li>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="30"
+                                    defaultValue="2"
+                                    ref={this.newBoardDailyDoubleInput} />
+                            </li>
+                            <li className="board-option-label">
+                                Board Type:
+                            </li>
+                            <li>
+                                <input
+                                    type="radio"
+                                    name="board-type"
+                                    id="board-type-normal"
+                                    value={BoardType.Normal}
+                                    onChange={this.handleBoardTypeChanged}
+                                    checked={this.state.selectedBoardType == BoardType.Normal} />
+                                <label htmlFor="board-type-normal">Single Jeopardy</label>
+                                <br />
+                                <input
+                                    type="radio"
+                                    name="board-type"
+                                    id="board-type-double-jeopardy"
+                                    value={BoardType.DoubleJeopardy}
+                                    onChange={this.handleBoardTypeChanged}
+                                    checked={this.state.selectedBoardType == BoardType.DoubleJeopardy} />
+                                <label htmlFor="board-type-double-jeopardy">Double Jeopardy</label>
+                                <br />
+                                <input
+                                    type="radio"
+                                    name="board-type"
+                                    id="board-type-final-jeopardy"
+                                    value={BoardType.FinalJeopardy}
+                                    onChange={this.handleBoardTypeChanged}
+                                    checked={this.state.selectedBoardType == BoardType.FinalJeopardy} />
+                                <label htmlFor="board-type-final-jeopardy">Final Jeopardy</label>
+                            </li>
+                        </ul>
+                    </form>
+                </fieldset>
+
+                <div className="bottom-buttons">
+                    <button onClick={this.handleCloseNewGameModal} type="button">Cancel</button>
+                    <button onClick={this.handleSubmitNewGameModal} type="submit">Submit</button>
+                </div>
+
+            </ReactModal>
         </div>;
     }
 }

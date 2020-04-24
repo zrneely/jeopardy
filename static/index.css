@@ -104,10 +104,10 @@ div.moderator-controls {
 div.moderator-controls-inner {
     display: flex;
     flex-direction: row;
-    width: 80%;
-    height: 80%;
+    width: 90%;
+    height: 90%;
 }
-div.answer-eval-buttons {
+div.moderator-controls-column {
     flex: 1;
 
     display: flex;
@@ -118,36 +118,43 @@ button.eval-button-correct {
     background-color: green;
     color: white;
     border: 2px solid black;
-    margin: 10px;
 }
 button.eval-button-correct[disabled] {
     background-color: gray;
 }
+
 button.eval-button-incorrect {
     flex: 1;
     background-color: darkred;
     color: white;
     border: 2px solid black;
-    margin: 10px;
 }
 button.eval-button-incorrect[disabled] {
     background-color: gray;
 }
+
+button.eval-button-skip {
+    flex: 1;
+    background-color: orange;
+    color: white;
+    border: 2px solid black;
+}
+button.eval-button-skip[disabled] {
+    background-color: gray;
+}
+
 button.new-board-button {
     flex: 1;
-    margin-left: 20px;
-    margin-right: 20px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin: 10px;
 }
-ul.current-stats {
-    flex: 1;
-    font-size: small;
-    list-style-type: none;
-    padding-left: 0px;
+div.current-stats-group {
+    flex: 2;
+
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
+}
+div.current-stats-group > p {
+    font-size: small;
 }
 
 .new-board-modal {
@@ -264,6 +271,21 @@ div.square {
     white-space: nowrap;
 }
 
+.clue-panel-enter {
+    opacity: 0;
+}
+.clue-panel-enter-active {
+    opacity: 1;
+    transition: opacity(500ms);
+}
+.clue-panel-exit {
+    opacity: 1;
+}
+.clue-panel-exit-active {
+    opacity: 0;
+    transition: opacity(500ms);
+}
+
 div.clue-panel {
     position: absolute;
     top: 5%;
@@ -277,6 +299,7 @@ div.clue-panel {
     background-color: var(--jeopardy-blue);
 
     display: flex;
+    flex-direction: column;
     justify-content: center;
     text-align: center;
     align-items: center;

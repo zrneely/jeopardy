@@ -1,6 +1,7 @@
 ///<reference types="autobahn" />
 ///<reference types="react" />
 ///<reference types="react-dom" />
+///<reference types="react-transition-group" />
 
 import autobahn from 'autobahn';
 import React from 'react';
