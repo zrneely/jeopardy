@@ -276,11 +276,8 @@ div.square {
     white-space: nowrap;
 }
 
-.clue-panel {
-    visibility: visible;
-}
 .clue-panel-hidden {
-    visibility: hidden;
+    display: none;
 }
 div.clue-panel {
     position: absolute;

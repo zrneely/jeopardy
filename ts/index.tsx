@@ -1,7 +1,7 @@
 ///<reference types="autobahn" />
 ///<reference types="react" />
 ///<reference types="react-dom" />
-///<reference types="react-transition-group" />
+///<reference types="lodash.debounce" />
 
 import autobahn from 'autobahn';
 import React from 'react';
