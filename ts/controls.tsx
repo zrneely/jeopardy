@@ -8,7 +8,7 @@ enum BoardType {
     FinalJeopardy = 'FJ',
 }
 
-interface ModeratorControlsProps {
+interface ControlsProps {
     activity: Activity,
     controllingPlayer: string | null, // name, not ID
     activePlayer: string | null, // name, not ID
@@ -21,7 +21,7 @@ interface ModeratorControlsState {
     newGameModalOpen: boolean,
     selectedBoardType: BoardType,
 }
-export class ModeratorControls extends React.Component<ModeratorControlsProps, ModeratorControlsState> {
+export class ModeratorControls extends React.Component<ControlsProps, ModeratorControlsState> {
     state: ModeratorControlsState = {
         newGameModalOpen: false,
         selectedBoardType: BoardType.Normal,
@@ -35,7 +35,7 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
 
     newBoardDailyDoubleInput = React.createRef<HTMLInputElement>();
 
-    constructor(props: ModeratorControlsProps) {
+    constructor(props: ControlsProps) {
         super(props);
 
         this.handleOpenNewGameModal = this.handleOpenNewGameModal.bind(this);
@@ -288,6 +288,34 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
                 </div>
 
             </ReactModal>
+        </div>;
+    }
+}
+
+interface PlayerControlsState {
+
+}
+export class PlayerControls extends React.Component<ControlsProps, PlayerControlsState> {
+    state: PlayerControlsState = {
+
+    };
+
+    constructor(props: ControlsProps) {
+        super(props);
+
+        this.handleBuzzClicked = this.handleBuzzClicked.bind(this);
+    }
+
+    handleBuzzClicked() {
+
+    }
+
+    render() {
+        return <div className="player-controls">
+            <div className="timer">Timer goes here</div>
+            <button onClick={this.handleBuzzClicked} className="buzz-button">
+                BUZZ
+            </button>
         </div>;
     }
 }

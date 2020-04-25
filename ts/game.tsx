@@ -2,7 +2,7 @@ import autobahn from 'autobahn';
 import React from 'react';
 import { GameJoinInfo, ServerData, handleError, Activity } from './common';
 import { Board } from './board';
-import { ModeratorControls } from './controls';
+import { ModeratorControls, PlayerControls } from './controls';
 
 interface GameState {
     isModerator: boolean,
@@ -248,20 +248,34 @@ export class Game extends React.Component<GameProps, GameState> {
             activeName = this.state.players[this.state.activePlayer].name;
         }
 
+        let controls;
+        if (this.state.isModerator) {
+            controls = <ModeratorControls
+                activity={this.state.currentActivity}
+                controllingPlayer={controllerName}
+                activePlayer={activeName}
+                seed={this.state.board.seed}
+                isBoardLoaded={this.state.board.id !== -1}
+                newBoardClicked={this.newBoardClicked}
+                evalButtonClicked={this.evalAnswerClicked} />;
+        } else {
+            controls = <PlayerControls
+                activity={this.state.currentActivity}
+                controllingPlayer={controllerName}
+                activePlayer={activeName}
+                seed={this.state.board.seed}
+                isBoardLoaded={this.state.board.id !== -1}
+                newBoardClicked={this.newBoardClicked}
+                evalButtonClicked={this.evalAnswerClicked} />;
+        }
+
         return <div className="game">
             <div className="game-left-panel">
                 <Board
                     data={this.state.board}
                     isModerator={this.state.isModerator}
                     squareClickedCallback={this.boardSquareClicked} />
-                <ModeratorControls
-                    activity={this.state.currentActivity}
-                    controllingPlayer={controllerName}
-                    activePlayer={activeName}
-                    seed={this.state.board.seed}
-                    isBoardLoaded={this.state.board.id !== -1}
-                    newBoardClicked={this.newBoardClicked}
-                    evalButtonClicked={this.evalAnswerClicked} />
+                {controls}
             </div>
             <div className="game-right-panel">
                 TODO

@@ -98,6 +98,16 @@ div.game-right-panel {
     padding-left: 5px;
     /* TODO */
 }
+
+div.player-controls {
+    flex: 1;
+
+    display: flex;
+    margin: 5px;
+    justify-content: center;
+    align-items: center;
+}
+
 div.moderator-controls {
     flex: 2;
 
