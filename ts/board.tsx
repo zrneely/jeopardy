@@ -1,5 +1,5 @@
 import React from 'react';
-import { ServerData } from './common'
+import { ServerData, handleError } from './common'
 
 interface SquareProps {
     data: ServerData.Square,
@@ -23,7 +23,7 @@ class Square extends React.PureComponent<SquareProps> {
         if (this.props.data.state === ServerData.SquareState.Finished) {
             return <div className="square">&nbsp;</div>;
         } else {
-            return <div className="square" onClick={this.handleSquareClicked}>
+            return <div className="square dollar-display" onClick={this.handleSquareClicked}>
                 <small>$</small>{this.props.value}
             </div>;
         }
@@ -92,11 +92,11 @@ export class Board extends React.PureComponent<BoardProps> {
         this.props.squareClickedCallback({ row, category });
     }
 
-    findFlippedSquare(): ServerData.Square | null {
+    findFlippedSquare(): [ServerData.Square, string, number] | null {
         for (let category of this.props.data.categories) {
-            for (let square of category.squares) {
-                if (square.state === ServerData.SquareState.Flipped) {
-                    return square;
+            for (let i = 0; i < category.squares.length; i++) {
+                if (category.squares[i].state === ServerData.SquareState.Flipped) {
+                    return [category.squares[i], category.title, +this.props.data.value_multiplier * i];
                 }
             }
         }
@@ -104,16 +104,62 @@ export class Board extends React.PureComponent<BoardProps> {
     }
 
     render() {
-        let activeSquare = this.findFlippedSquare();
+        let flipResult = this.findFlippedSquare();
         let cluePanel: React.ReactElement;
-        if (activeSquare !== null) {
-            let answer = null;
+        if (flipResult !== null) {
+            let [activeSquare, categoryTitle, value] = flipResult;
+
+            let answer;
             if (this.props.isModerator) {
-                answer = <span className="clue-panel-answer">{activeSquare.answer}</span>;
+                answer = <div className="clue-panel-answer">Answer: {activeSquare.answer}</div>;
+            } else {
+                answer = <div className="clue-panel-answer">&nbsp;</div>;
+            }
+
+            let clueMediaEmbed = null;
+            if (activeSquare.clue?.link !== undefined) {
+                switch (activeSquare.clue?.link.split('.').pop()) {
+                    case 'mp3':
+                    case 'wav': {
+                        clueMediaEmbed = <div className="clue-panel-clue-img">
+                            <audio src={activeSquare.clue?.link} />
+                        </div>;
+                        break;
+                    }
+
+                    case 'jpg':
+                    case 'png': {
+                        clueMediaEmbed = <div className="clue-panel-clue-img">
+                            <img src={activeSquare.clue?.link} />
+                        </div>;
+                        break;
+                    }
+
+                    case 'mp4':
+                    case 'mov': {
+                        clueMediaEmbed = <div className="clue-panel-clue-img">
+                            <video src={activeSquare.clue?.link} />
+                        </div>;
+                        break;
+                    }
+
+                    default: {
+                        handleError('unknown embed extension', null, false);
+                        clueMediaEmbed = <div className="clue-panel-img">
+                            &nbsp;
+                        </div>;
+                    }
+                }
             }
 
             cluePanel = <div className="clue-panel">
-                {JSON.stringify(activeSquare.clue)}
+                <div className="clue-panel-category-ident">
+                    {categoryTitle} - ${value}
+                </div>
+                {clueMediaEmbed}
+                <div className="clue-panel-clue-text">
+                    {activeSquare.clue?.text}
+                </div>
                 {answer}
             </ div>;
         } else {

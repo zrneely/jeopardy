@@ -267,7 +267,9 @@ div.square {
 
     border: 1px solid black;
     padding: 3px;
+}
 
+.dollar-display {
     color: goldenrod;
     font-family: var(--card-font);
     font-size: 200%;
@@ -293,8 +295,28 @@ div.clue-panel {
 
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: space-evenly;
     text-align: center;
     align-items: center;
     text-shadow: 2px 2px black;
+}
+div.clue-panel-category-ident {
+    padding-top: 5px;
+    padding-left: 5px;
+    flex: 1;
+    align-self: flex-start;
+}
+div.clue-panel-clue-text {
+    flex: 4;
+    width: 80%;
+    text-transform: uppercase;
+    font-size: x-large;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+div.clue-panel-answer {
+    flex: 1;
+    padding-bottom: 5px;
 }
