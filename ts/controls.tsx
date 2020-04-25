@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactModal from 'react-modal';
-import { Activity, handleError } from './common'
+import { Activity, handleError, ServerData } from './common'
 
 enum BoardType {
     Normal = 'N',
@@ -15,6 +15,7 @@ interface ModeratorControlsProps {
     seed: string | null,
     isBoardLoaded: boolean,
     newBoardClicked: (seed: string | null, dailyDoubles: number, multiplier: number) => void,
+    evalButtonClicked: (type: ServerData.AnswerType) => void,
 }
 interface ModeratorControlsState {
     newGameModalOpen: boolean,
@@ -41,6 +42,10 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
         this.handleSubmitNewGameModal = this.handleSubmitNewGameModal.bind(this);
         this.handleCloseNewGameModal = this.handleCloseNewGameModal.bind(this);
         this.handleBoardTypeChanged = this.handleBoardTypeChanged.bind(this);
+
+        this.handleEvalCorrectClicked = this.handleEvalCorrectClicked.bind(this);
+        this.handleEvalIncorrectClicked = this.handleEvalIncorrectClicked.bind(this);
+        this.handleEvalSkipClicked = this.handleEvalSkipClicked.bind(this);
     }
 
     handleOpenNewGameModal() {
@@ -120,6 +125,18 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
         });
     }
 
+    handleEvalCorrectClicked() {
+        this.props.evalButtonClicked(ServerData.AnswerType.Correct);
+    }
+
+    handleEvalIncorrectClicked() {
+        this.props.evalButtonClicked(ServerData.AnswerType.Incorrect);
+    }
+
+    handleEvalSkipClicked() {
+        this.props.evalButtonClicked(ServerData.AnswerType.Skip);
+    }
+
     render() {
         let activityString;
         switch (this.props.activity) {
@@ -140,6 +157,11 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
                 break;
             }
 
+            case Activity.WaitForDailyDoubleWager: {
+                activityString = 'Wait for a player to enter their daily double wager.';
+                break;
+            }
+
             case Activity.EvaluateAnswer: {
                 activityString = 'Wait for the active player to give an answer, then click ' +
                     'correct or incorrect.';
@@ -151,6 +173,7 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
             <div className="moderator-controls-inner">
                 <div className="moderator-controls-column">
                     <button
+                        onClick={this.handleEvalCorrectClicked}
                         disabled={this.props.activity !== Activity.EvaluateAnswer}
                         className="eval-button-correct">
                         Correct
@@ -162,18 +185,22 @@ export class ModeratorControls extends React.Component<ModeratorControlsProps, M
                 </div>
                 <div className="moderator-controls-column">
                     <button
+                        onClick={this.handleEvalIncorrectClicked}
                         disabled={this.props.activity !== Activity.EvaluateAnswer}
                         className="eval-button-incorrect">
                         Inorrect
                     </button>
                     <div className="current-stats-group">
-                        <p>Control: {this.props.controllingPlayer}</p>
-                        <p>Active: {this.props.activePlayer}</p>
+                        <p>Control: <span className="player-name">{this.props.controllingPlayer}</span></p>
+                        <p>Active: <span className="player-name">{this.props.activePlayer}</span></p>
                     </div>
                 </div>
                 <div className="moderator-controls-column">
                     <button
-                        disabled={this.props.activity !== Activity.EvaluateAnswer}
+                        onClick={this.handleEvalSkipClicked}
+                        disabled={this.props.activity !== Activity.EvaluateAnswer &&
+                            this.props.activity !== Activity.WaitForBuzz &&
+                            this.props.activity !== Activity.WaitForDailyDoubleWager}
                         className="eval-button-skip">
                         Skip
                     </button>

@@ -19,6 +19,7 @@ export enum Activity {
     Wait,
     Moderate,
     WaitForBuzz,
+    WaitForDailyDoubleWager,
     Buzz,               // player only
     DailyDoubleWager,   // player only
     EvaluateAnswer,     // moderator only
@@ -48,6 +49,12 @@ export namespace ServerData {
         Normal = 'Normal',
         Flipped = 'Flipped',
         Finished = 'Finished',
+    }
+
+    export enum AnswerType {
+        Correct = 'Correct',
+        Incorrect = 'Incorrect',
+        Skip = 'Skip',
     }
 
     export interface Square {

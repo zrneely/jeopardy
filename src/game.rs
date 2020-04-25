@@ -24,6 +24,24 @@ const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
 // Raw counts: 10, 433, 998, 1433, 945
 const DAILY_DOUBLE_WEIGHTS: [f64; 5] = [0.002, 0.113, 0.261, 0.375, 0.247];
 
+pub enum AnswerType {
+    Correct,
+    Incorrect,
+    Skip,
+}
+impl std::str::FromStr for AnswerType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, ()> {
+        Ok(match s {
+            "Correct" => AnswerType::Correct,
+            "Incorrect" => AnswerType::Incorrect,
+            "Skip" => AnswerType::Skip,
+            _ => return Err(()),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct Location {
     category: usize, // 0 is left, 4 is right
@@ -785,41 +803,64 @@ impl Game {
         Ok(())
     }
 
-    pub(crate) fn answer(&mut self, correct: bool) -> Result<(), Error> {
-        let new_state = match &mut self.state {
+    pub(crate) fn answer(&mut self, answer: AnswerType) -> Result<(), Error> {
+        let new_controller = match &mut self.state {
             GameState::WaitingForAnswer {
-                ref mut board,
-                location,
-                controller,
                 active_player,
                 value,
+                controller,
                 ..
             } => {
                 let player = self
                     .players
                     .get_mut(&active_player)
                     .ok_or(Error::NoSuchPlayer)?;
-                if correct {
-                    player.score += *value;
-                } else {
-                    player.score -= *value;
+                match answer {
+                    AnswerType::Correct => {
+                        player.score += *value;
+                        active_player.clone()
+                    }
+                    AnswerType::Incorrect => {
+                        player.score -= *value;
+                        controller.clone()
+                    }
+                    AnswerType::Skip => controller.clone(),
                 }
+            }
 
+            GameState::WaitingForBuzzer { controller, .. } => controller.clone(),
+            GameState::WaitingForDailyDoubleWager { controller, .. } => controller.clone(),
+
+            _ => return Err(Error::InvalidStateForOperation),
+        };
+
+        let new_state = match &mut self.state {
+            GameState::WaitingForAnswer {
+                ref mut board,
+                location,
+                ..
+            }
+            | GameState::WaitingForBuzzer {
+                ref mut board,
+                location,
+                ..
+            }
+            | GameState::WaitingForDailyDoubleWager {
+                ref mut board,
+                location,
+                ..
+            } => {
                 board.get_square_mut(location).finish()?;
 
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
                 GameState::WaitingForSquareSelection {
                     board: new_board,
-                    controller: if correct {
-                        Some(active_player.clone())
-                    } else {
-                        Some(controller.clone())
-                    },
+                    controller: Some(new_controller),
                 }
             }
 
-            _ => return Err(Error::InvalidSquareStateTransition),
+            _ => return Err(Error::InvalidStateForOperation),
         };
 
         self.state = new_state;

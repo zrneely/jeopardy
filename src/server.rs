@@ -5,7 +5,7 @@ use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
 
 use crate::{
     errors::Error,
-    game::{Location, Player, PlayerType, SquareState},
+    game::{AnswerType, Location, Player, PlayerType, SquareState},
     AuthToken, GameId, Message, PlayerId, Seed, GAME_LOBBY_CHANNEL, MSG_QUEUE, OPERATION_TIMEOUT,
     STATE,
 };
@@ -248,7 +248,7 @@ pub async fn answer(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKw
     info!("answer");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
-    let correct: bool = get_str_parse(kwargs.get("correct").ok_or(Error::BadArgument)?)?;
+    let answer: AnswerType = get_str_parse(kwargs.get("answer").ok_or(Error::BadArgument)?)?;
 
     {
         let games = STATE
@@ -266,7 +266,7 @@ pub async fn answer(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKw
             game.auth_and_get_player_type(&player_id, &auth),
             Some(PlayerType::Moderator)
         ) {
-            game.answer(correct)?;
+            game.answer(answer)?;
         } else {
             return Err(Error::NotAllowed.into());
         }
@@ -288,8 +288,8 @@ pub async fn new_board(
     let daily_doubles: usize =
         get_str_parse(kwargs.get("daily_doubles").ok_or(Error::BadArgument)?)?;
     let categories: usize = get_str_parse(kwargs.get("categories").ok_or(Error::BadArgument)?)?;
-    let seed: Seed = if let Some(Arg::Uri(arg)) = dbg!(kwargs.get("seed")) {
-        dbg!(arg.parse()).unwrap_or_else(|_| Seed::new_random())
+    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
+        arg.parse().unwrap_or_else(|_| Seed::new_random())
     } else {
         Seed::new_random()
     };

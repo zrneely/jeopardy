@@ -38,6 +38,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.getEmptyBoard = this.getEmptyBoard.bind(this);
         this.newBoardClicked = this.newBoardClicked.bind(this);
         this.boardSquareClicked = this.boardSquareClicked.bind(this);
+        this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -77,7 +78,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 case 'NoBoard': return Activity.Moderate;
                 case 'WaitingForSquareSelection': return Activity.Moderate;
                 case 'WaitingForBuzzer': return Activity.WaitForBuzz;
-                case 'WaitingForDailyDoubleWager': return Activity.EvaluateAnswer;
+                case 'WaitingForDailyDoubleWager': return Activity.WaitForDailyDoubleWager;
                 case 'WaitingForAnswer': return Activity.EvaluateAnswer;
                 default: {
                     handleError('unknown game state', '', true);
@@ -178,6 +179,21 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    evalAnswerClicked(answer: ServerData.AnswerType) {
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            answer,
+        };
+
+        this.props.session.call('jpdy.answer', [], argument).then(() => {
+            console.log('answer call succeeded!');
+        }, (error) => {
+            handleError('answer call failed', error, false);
+        });
+    }
+
     componentDidMount() {
         let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
             'game_id': this.props.joinInfo.gameId,
@@ -236,7 +252,8 @@ export class Game extends React.Component<GameProps, GameState> {
                     activePlayer={activeName}
                     seed={this.state.board.seed}
                     isBoardLoaded={this.state.board.id !== -1}
-                    newBoardClicked={this.newBoardClicked} />
+                    newBoardClicked={this.newBoardClicked}
+                    evalButtonClicked={this.evalAnswerClicked} />
             </div>
             <div className="game-right-panel">
                 TODO

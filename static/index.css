@@ -33,6 +33,11 @@ button:hover {
     transition: background-color 0.2s ease 0s;
 }
 
+span.player-name {
+    font-weight: bold;
+    font-style: italic;
+}
+
 div.no-connection-msg {
     width: 100%;
     height: 100%;
