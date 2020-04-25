@@ -64,7 +64,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
         return {
             value_multiplier: '1',
-            categories: categories,
+            categories,
             daily_doubles: [],
             etag: 0,
             id: -1,
@@ -164,6 +164,10 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     boardSquareClicked(location: ServerData.BoardLocation) {
+        if (!this.state.isModerator) {
+            return;
+        }
+
         let argument: { [k: string]: string } = {
             game_id: this.props.joinInfo.gameId,
             player_id: this.props.joinInfo.playerId,
@@ -180,6 +184,10 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     evalAnswerClicked(answer: ServerData.AnswerType) {
+        if (!this.state.isModerator) {
+            return;
+        }
+
         let argument: { [k: string]: string } = {
             game_id: this.props.joinInfo.gameId,
             player_id: this.props.joinInfo.playerId,

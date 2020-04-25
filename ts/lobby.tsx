@@ -101,7 +101,12 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
                                 value={openGame.game_id}
                                 onChange={this.handleChangeSelectedGame} />
                             <label htmlFor={id}>
-                                {openGame.moderator}'s Game
+                                {openGame.moderator}'s Game - Players:
+                                <ul>
+                                    {openGame.players.map((player) => {
+                                        return <li>{player}</li>;
+                                    })}
+                                </ul>
                             </label>
                         </li>
                     );

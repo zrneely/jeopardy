@@ -276,21 +276,12 @@ div.square {
     white-space: nowrap;
 }
 
-.clue-panel-enter {
-    opacity: 0;
+.clue-panel {
+    visibility: visible;
 }
-.clue-panel-enter-active {
-    opacity: 1;
-    transition: opacity(500ms);
+.clue-panel-hidden {
+    visibility: hidden;
 }
-.clue-panel-exit {
-    opacity: 1;
-}
-.clue-panel-exit-active {
-    opacity: 0;
-    transition: opacity(500ms);
-}
-
 div.clue-panel {
     position: absolute;
     top: 5%;
