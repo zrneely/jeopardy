@@ -29,10 +29,6 @@ button {
     transition: background-color 0.2s ease 0s;
     transition: color 0.2s ease 0s;
 }
-button:hover {
-    background-color: #ccc;
-    transition: background-color 0.2s ease 0s;
-}
 button[disabled] {
     background-color: gray !important;
     border: 1px solid black;
@@ -162,6 +158,7 @@ button.eval-button-correct {
 }
 button.eval-button-correct:hover {
     background-color: lightgreen;
+    transition: background-color 0.2s ease 0s;
 }
 button.eval-button-incorrect {
     flex: 1;
@@ -171,6 +168,7 @@ button.eval-button-incorrect {
 }
 button.eval-button-incorrect:hover {
     background-color: red;
+    transition: background-color 0.2s ease 0s;
 }
 button.eval-button-skip {
     flex: 1;
@@ -180,12 +178,17 @@ button.eval-button-skip {
 }
 button.eval-button-skip:hover {
     background-color: orange;
+    transition: background-color 0.2s ease 0s;
 }
 
 
 button.new-board-button {
     flex: 1;
     margin: 10px;
+}
+button.new-board-button:hover {
+    background-color: #ccc;
+    transition: background-color 0.2s ease 0s;
 }
 div.current-stats-group {
     flex: 2;
@@ -223,6 +226,10 @@ div.current-stats-group > p {
 
     display: flex;
     flex-direction: row;
+}
+.new-board-modal > div.bottom-buttons > button:hover {
+    background-color: #ccc;
+    transition: background-color 0.2s ease 0s;
 }
 fieldset.new-board-options {
     flex: 1;
@@ -354,4 +361,64 @@ div.clue-panel-clue-text {
 div.clue-panel-answer {
     flex: 1;
     padding-bottom: 5px;
+}
+
+.avatar-input {
+    display: flex;
+}
+.avatar-input-panel {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+}
+.avatar-color-buttons {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.avatar-color-buttons > button {
+    border: 1px solid black;
+    border-radius: 5%;
+    flex: 1;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+.avatar-input-color-display {
+    padding: 10px;
+    border: 1px solid black;
+    flex: 1;
+    align-self: flex-start;
+    margin-bottom: 10px;
+}
+.avatar-input-second-panel {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+}
+.avatar-input-tool-select {
+    flex: 3;
+}
+.avatar-input-reset {
+    flex: 1;
+}
+.avatar-button-color-red {
+    background-color: red;
+}
+.avatar-button-color-orange {
+    background-color: orange;
+}
+.avatar-button-color-green {
+    background-color: green;
+}
+.avatar-button-color-blue {
+    background-color: blue;
+}
+.avatar-button-color-purple {
+    background-color: purple;
+}
+.avatar-button-color-black {
+    background-color: black;
+}
+.avatar-button-color-white {
+    background-color: white;
 }
