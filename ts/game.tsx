@@ -39,6 +39,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.newBoardClicked = this.newBoardClicked.bind(this);
         this.boardSquareClicked = this.boardSquareClicked.bind(this);
         this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
+        this.buzzClicked = this.buzzClicked.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -202,6 +203,24 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    buzzClicked() {
+        if (this.state.isModerator) {
+            return;
+        }
+
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+        };
+
+        this.props.session.call('jpdy.buzz', [], argument).then(() => {
+            console.log('buzz succeeded!');
+        }, (error) => {
+            handleError('buzz failed', error, false);
+        });
+    }
+
     componentDidMount() {
         let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
             'game_id': this.props.joinInfo.gameId,
@@ -257,7 +276,8 @@ export class Game extends React.Component<GameProps, GameState> {
                 seed={this.state.board.seed}
                 isBoardLoaded={this.state.board.id !== -1}
                 newBoardClicked={this.newBoardClicked}
-                evalButtonClicked={this.evalAnswerClicked} />;
+                evalButtonClicked={this.evalAnswerClicked}
+                buzzerClicked={this.buzzClicked} />;
         } else {
             controls = <PlayerControls
                 activity={this.state.currentActivity}
@@ -266,7 +286,8 @@ export class Game extends React.Component<GameProps, GameState> {
                 seed={this.state.board.seed}
                 isBoardLoaded={this.state.board.id !== -1}
                 newBoardClicked={this.newBoardClicked}
-                evalButtonClicked={this.evalAnswerClicked} />;
+                evalButtonClicked={this.evalAnswerClicked}
+                buzzerClicked={this.buzzClicked} />;
         }
 
         return <div className="game">

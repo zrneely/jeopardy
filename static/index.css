@@ -27,10 +27,15 @@ button {
     padding: 4px 8px 4px 8px;
     border: 1px solid black;
     transition: background-color 0.2s ease 0s;
+    transition: color 0.2s ease 0s;
 }
 button:hover {
     background-color: #ccc;
     transition: background-color 0.2s ease 0s;
+}
+button[disabled] {
+    background-color: gray !important;
+    border: 1px solid black;
 }
 
 span.player-name {
@@ -103,9 +108,30 @@ div.player-controls {
     flex: 1;
 
     display: flex;
+    flex-direction: column;
     margin: 5px;
     justify-content: center;
+    align-items: stretch;
+}
+.timer {
+    flex: 1;
+    border: 1px solid black;
+}
+.buzz-button {
+    flex: 4;
+    background-color: darkred;
+    border: 2px solid darkred;
+    margin: 10px;
+    color: white;
+    user-select: none;
+
+    display: flex;
+    justify-content: center;
     align-items: center;
+}
+.buzz-button:hover:not(:disabled) {
+    background-color: pink;
+    color: black;
 }
 
 div.moderator-controls {
@@ -134,29 +160,28 @@ button.eval-button-correct {
     color: white;
     border: 2px solid black;
 }
-button.eval-button-correct[disabled] {
-    background-color: gray;
+button.eval-button-correct:hover {
+    background-color: lightgreen;
 }
-
 button.eval-button-incorrect {
     flex: 1;
     background-color: darkred;
     color: white;
     border: 2px solid black;
 }
-button.eval-button-incorrect[disabled] {
-    background-color: gray;
+button.eval-button-incorrect:hover {
+    background-color: red;
 }
-
 button.eval-button-skip {
     flex: 1;
-    background-color: orange;
+    background-color: coral;
     color: white;
     border: 2px solid black;
 }
-button.eval-button-skip[disabled] {
-    background-color: gray;
+button.eval-button-skip:hover {
+    background-color: orange;
 }
+
 
 button.new-board-button {
     flex: 1;

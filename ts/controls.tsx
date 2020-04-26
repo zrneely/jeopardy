@@ -16,6 +16,7 @@ interface ControlsProps {
     isBoardLoaded: boolean,
     newBoardClicked: (seed: string | null, dailyDoubles: number, multiplier: number) => void,
     evalButtonClicked: (type: ServerData.AnswerType) => void,
+    buzzerClicked: () => void,
 }
 interface ModeratorControlsState {
     newGameModalOpen: boolean,
@@ -307,13 +308,16 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
     }
 
     handleBuzzClicked() {
-
+        this.props.buzzerClicked();
     }
 
     render() {
         return <div className="player-controls">
             <div className="timer">Timer goes here</div>
-            <button onClick={this.handleBuzzClicked} className="buzz-button">
+            <button
+                onClick={this.handleBuzzClicked}
+                className="buzz-button"
+                disabled={this.props.activity !== Activity.Buzz}>
                 BUZZ
             </button>
         </div>;
