@@ -3,6 +3,7 @@ import React from 'react';
 import { GameJoinInfo, ServerData, handleError, Activity } from './common';
 import { Board } from './board';
 import { ModeratorControls, PlayerControls } from './controls';
+import { PlayersList } from './players';
 
 interface GameState {
     isModerator: boolean,
@@ -40,6 +41,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.boardSquareClicked = this.boardSquareClicked.bind(this);
         this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
         this.buzzClicked = this.buzzClicked.bind(this);
+        this.adjustScore = this.adjustScore.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -221,6 +223,26 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    adjustScore(targetPlayerId: string, newScore: number) {
+        if (!this.state.isModerator) {
+            return;
+        }
+
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            target: targetPlayerId,
+            new_score: newScore.toString(),
+        };
+
+        this.props.session.call('jpdy.change_player_score', [], argument).then(() => {
+            console.log('change_player_score call succeeded!');
+        }, (error) => {
+            handleError('change_player_score call failed', error, false);
+        });
+    }
+
     componentDidMount() {
         let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
             'game_id': this.props.joinInfo.gameId,
@@ -299,7 +321,10 @@ export class Game extends React.Component<GameProps, GameState> {
                 {controls}
             </div>
             <div className="game-right-panel">
-                TODO
+                <PlayersList
+                    isModerator={this.state.isModerator}
+                    players={this.state.players}
+                    adjScoreCallback={this.adjustScore} />
             </div>
         </div>;
     }

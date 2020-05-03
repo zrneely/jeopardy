@@ -92,13 +92,6 @@ div.game-left-panel {
     flex-direction: column;
     align-items: stretch;
 }
-div.game-right-panel {
-    flex: 2;
-
-    display: flex;
-    padding-left: 5px;
-    /* TODO */
-}
 
 div.player-controls {
     flex: 1;
@@ -139,9 +132,10 @@ div.player-controls {
     justify-content: center;
     align-items: center;
 }
-.buzz-button:hover:not(:disabled) {
+.buzz-button:hover:not([disabled]) {
     background-color: pink;
     color: black;
+    cursor: pointer;
 }
 
 div.moderator-controls {
@@ -172,6 +166,9 @@ button.eval-button-correct {
     color: white;
     border: 2px solid black;
 }
+button.eval-button-correct:not([disabled]) {
+    cursor: pointer;
+}
 button.eval-button-correct:hover {
     background-color: lightgreen;
     transition: background-color 0.2s ease 0s;
@@ -181,6 +178,9 @@ button.eval-button-incorrect {
     background-color: darkred;
     color: white;
     border: 2px solid black;
+}
+button.eval-button-incorrect:not([disabled]) {
+    cursor: pointer;
 }
 button.eval-button-incorrect:hover {
     background-color: red;
@@ -192,6 +192,9 @@ button.eval-button-skip {
     color: white;
     border: 2px solid black;
 }
+button.eval-button-skip:not([disabled]) {
+    cursor: pointer;
+}
 button.eval-button-skip:hover {
     background-color: orange;
     transition: background-color 0.2s ease 0s;
@@ -201,6 +204,7 @@ button.eval-button-skip:hover {
 button.new-board-button {
     flex: 1;
     margin: 10px;
+    cursor: pointer;
 }
 button.new-board-button:hover {
     background-color: #ccc;
@@ -246,6 +250,7 @@ div.current-stats-group > p {
 .new-board-modal > div.bottom-buttons > button:hover {
     background-color: #ccc;
     transition: background-color 0.2s ease 0s;
+    cursor: pointer;
 }
 fieldset.new-board-options {
     flex: 1;
@@ -326,6 +331,9 @@ div.square {
     border: 1px solid black;
     padding: 3px;
 }
+div.square.dollar-display {
+    cursor: pointer;
+}
 
 .dollar-display {
     color: goldenrod;
@@ -334,6 +342,12 @@ div.square {
     font-weight: bolder;
     text-shadow: 2px 2px black;
     white-space: nowrap;
+}
+.dollar-display-negative {
+    color: red;
+}
+.dollar-display-negative:before {
+    content: "-";
 }
 
 .clue-panel-hidden {
@@ -437,4 +451,75 @@ div.clue-panel-answer {
 }
 .avatar-button-color-white {
     background-color: white;
+}
+
+
+div.game-right-panel {
+    flex: 2;
+}
+.players-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-content: flex-start;
+
+    list-style-type: none;
+    padding-left: 0px;
+    margin: 5px;
+}
+.players-list-entry {
+    flex: 1;
+
+    border: 1px solid black;
+    margin: 10px;
+    padding: 10px;
+    background-color: #ddd;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-evenly;
+}
+.players-list-entry-moderator:hover {
+    cursor: pointer;
+    background-color: #ccc;
+}
+.players-list-entry-name {
+    font-size: larger;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.adjust-score-modal {
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    left: 25%;
+    right: 25%;
+
+    padding: 20px;
+    background-color: var(--background-color);
+    border-radius: 5px;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.4);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    overflow-y: auto;
+}
+.adjust-score-modal > h3 {
+    margin: 0px;
+}
+.adjust-score-modal > div.bottom-buttons {
+    align-self: flex-end;
+
+    display: flex;
+    flex-direction: row;
+}
+.adjust-score-modal > div.bottom-buttons > button:hover {
+    background-color: #ccc;
+    transition: background-color 0.2s ease 0s;
+    cursor: pointer;
 }

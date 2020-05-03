@@ -36,6 +36,7 @@ export namespace ServerData {
     export interface Player {
         name: string,
         score: string,
+        avatar_url: string,
     }
 
     export interface GameStateUpdate {
