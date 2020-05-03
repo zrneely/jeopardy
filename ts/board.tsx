@@ -96,7 +96,11 @@ export class Board extends React.PureComponent<BoardProps> {
         for (let category of this.props.data.categories) {
             for (let i = 0; i < category.squares.length; i++) {
                 if (category.squares[i].state === ServerData.SquareState.Flipped) {
-                    return [category.squares[i], category.title, +this.props.data.value_multiplier * i];
+                    return [
+                        category.squares[i],
+                        category.title,
+                        +this.props.data.value_multiplier * (i + 1)
+                    ];
                 }
             }
         }
@@ -136,7 +140,8 @@ export class Board extends React.PureComponent<BoardProps> {
                     }
 
                     case 'mp4':
-                    case 'mov': {
+                    case 'mov':
+                    case 'wmv': {
                         clueMediaEmbed = <div className="clue-panel-clue-img">
                             <video src={activeSquare.clue?.link} />
                         </div>;

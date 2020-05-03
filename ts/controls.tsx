@@ -2,6 +2,37 @@ import React from 'react';
 import ReactModal from 'react-modal';
 import { Activity, handleError, ServerData } from './common'
 
+const TIMER_STATES = [
+    [false, false, false, false, false, false, false, false, false],
+    [false, false, false, false, true, false, false, false, false],
+    [false, false, false, true, true, true, false, false, false],
+    [false, false, true, true, true, true, true, false, false],
+    [false, true, true, true, true, true, true, true, false],
+    [true, true, true, true, true, true, true, true, true],
+];
+const TIMER_DELAY = 1000;
+const TIMER_STEPS = 5;
+
+interface TimerProps {
+    timeRemaining: number,
+}
+class Timer extends React.Component<TimerProps> {
+    render() {
+        let segments = [];
+        for (let i = 0; i < 9; i++) {
+            if (TIMER_STATES[this.props.timeRemaining][i]) {
+                segments.push(<div key={i} className="timer-segment timer-segment-active" />);
+            } else {
+                segments.push(<div key={i} className="timer-segment" />)
+            }
+        }
+
+        return <div className="timer">
+            {segments}
+        </div>;
+    }
+}
+
 enum BoardType {
     Normal = 'N',
     DoubleJeopardy = 'DJ',
@@ -21,11 +52,13 @@ interface ControlsProps {
 interface ModeratorControlsState {
     newGameModalOpen: boolean,
     selectedBoardType: BoardType,
+    timerTimeRemaining: number,
 }
 export class ModeratorControls extends React.Component<ControlsProps, ModeratorControlsState> {
     state: ModeratorControlsState = {
         newGameModalOpen: false,
         selectedBoardType: BoardType.Normal,
+        timerTimeRemaining: 0,
     };
 
     newBoardSeedInputs = [
@@ -39,6 +72,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
     constructor(props: ControlsProps) {
         super(props);
 
+        this.handleTimerFired = this.handleTimerFired.bind(this);
         this.handleOpenNewGameModal = this.handleOpenNewGameModal.bind(this);
         this.handleSubmitNewGameModal = this.handleSubmitNewGameModal.bind(this);
         this.handleCloseNewGameModal = this.handleCloseNewGameModal.bind(this);
@@ -47,6 +81,29 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         this.handleEvalCorrectClicked = this.handleEvalCorrectClicked.bind(this);
         this.handleEvalIncorrectClicked = this.handleEvalIncorrectClicked.bind(this);
         this.handleEvalSkipClicked = this.handleEvalSkipClicked.bind(this);
+    }
+
+    componentDidUpdate(prevProps: ControlsProps) {
+        if ((this.props.activity === Activity.EvaluateAnswer) &&
+            (prevProps.activity !== Activity.EvaluateAnswer)) {
+            this.setState({
+                timerTimeRemaining: TIMER_STEPS,
+            });
+            setTimeout(this.handleTimerFired, TIMER_DELAY);
+        }
+    }
+
+    handleTimerFired() {
+        if (this.state.timerTimeRemaining > 1) {
+            this.setState({
+                timerTimeRemaining: this.state.timerTimeRemaining - 1,
+            });
+            setTimeout(this.handleTimerFired, TIMER_DELAY);
+        } else {
+            this.setState({
+                timerTimeRemaining: 0,
+            });
+        }
     }
 
     handleOpenNewGameModal() {
@@ -171,6 +228,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         }
 
         return <div className="moderator-controls">
+            <Timer timeRemaining={this.state.timerTimeRemaining} />
             <div className="moderator-controls-inner">
                 <div className="moderator-controls-column">
                     <button
@@ -294,26 +352,46 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
 }
 
 interface PlayerControlsState {
-
+    timerTimeRemaining: number,
 }
 export class PlayerControls extends React.Component<ControlsProps, PlayerControlsState> {
     state: PlayerControlsState = {
-
+        timerTimeRemaining: 0,
     };
 
     constructor(props: ControlsProps) {
         super(props);
 
         this.handleBuzzClicked = this.handleBuzzClicked.bind(this);
+        this.handleTimerFired = this.handleTimerFired.bind(this);
+    }
+
+    handleTimerFired() {
+        if (this.state.timerTimeRemaining > 1) {
+            this.setState({
+                timerTimeRemaining: this.state.timerTimeRemaining - 1,
+            });
+            setTimeout(this.handleTimerFired, TIMER_DELAY);
+        } else {
+            this.setState({
+                timerTimeRemaining: 0,
+            });
+        }
     }
 
     handleBuzzClicked() {
-        this.props.buzzerClicked();
+        if (this.state.timerTimeRemaining === 0) {
+            this.setState({
+                timerTimeRemaining: TIMER_STEPS,
+            });
+            setTimeout(this.handleTimerFired, TIMER_DELAY);
+            this.props.buzzerClicked();
+        }
     }
 
     render() {
         return <div className="player-controls">
-            <div className="timer">Timer goes here</div>
+            <Timer timeRemaining={this.state.timerTimeRemaining} />
             <button
                 onClick={this.handleBuzzClicked}
                 className="buzz-button"

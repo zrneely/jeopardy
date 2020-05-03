@@ -111,7 +111,21 @@ div.player-controls {
 }
 .timer {
     flex: 1;
+
+    display: flex;
+    flex-direction: row;
     border: 1px solid black;
+    background-color: var(--jeopardy-blue);
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.4);
+}
+.timer-segment {
+    flex: 1;
+    border: 1px solid black;
+    margin: 3px;
+    background-color: var(--background-color);
+}
+.timer-segment-active {
+    background-color: darkred;
 }
 .buzz-button {
     flex: 4;
@@ -134,15 +148,17 @@ div.moderator-controls {
     flex: 2;
 
     display: flex;
+    flex-direction: column;
     margin: 5px;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
 }
 div.moderator-controls-inner {
+    flex: 6;
+
     display: flex;
     flex-direction: row;
-    width: 90%;
-    height: 90%;
+    margin: 10px;
 }
 div.moderator-controls-column {
     flex: 1;
