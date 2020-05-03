@@ -71,7 +71,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     }
   }
 
-  joinGame(playerName: string, gameId: string) {
+  joinGame(playerName: string, avatar: string, gameId: string) {
     if (this.state.session === null) {
       console.warn('session is null when joining game!');
       return;
@@ -81,6 +81,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     this.state.session.call<autobahn.Result>('jpdy.join', [], {
       player_name: playerName,
       game_id: gameId,
+      avatar,
     }).then((result) => {
       console.log(`join result: ${JSON.stringify(result.kwargs)}`);
 
@@ -107,7 +108,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     });
   }
 
-  makeGame(playerName: string) {
+  makeGame(playerName: string, avatar: string) {
     if (this.state.session === null) {
       console.warn('session is null when starting game!');
       return;
@@ -116,6 +117,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     console.log('making game');
     this.state.session.call<autobahn.Result>('jpdy.new_game', [], {
       player_name: playerName,
+      avatar,
     }).then((result) => {
       console.log(`new_game result: ${JSON.stringify(result.kwargs)}`);
 

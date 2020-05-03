@@ -10,3 +10,4 @@ static/index.js
 *.tsbuildinfo
 *.js.map
 *.bundle.js
+static/avatars/

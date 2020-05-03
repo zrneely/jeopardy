@@ -6,8 +6,8 @@ use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
 use crate::{
     errors::Error,
     game::{AnswerType, Location, Player, PlayerType, SquareState},
-    AuthToken, GameId, Message, PlayerId, Seed, GAME_LOBBY_CHANNEL, MSG_QUEUE, OPERATION_TIMEOUT,
-    STATE,
+    AuthToken, GameId, Message, PlayerId, Seed, AVATAR_MANAGER, GAME_LOBBY_CHANNEL, MSG_QUEUE,
+    OPERATION_TIMEOUT, STATE,
 };
 
 fn get_str_parse<T: std::str::FromStr>(arg: &Arg) -> Result<T, Error> {
@@ -44,16 +44,16 @@ pub async fn make_game(
 ) -> Result<(WampArgs, WampKwArgs), WampError> {
     info!("make_game");
 
-    let player_name = get_str(
-        kwargs
-            .as_ref()
-            .ok_or(Error::BadArgument)?
-            .get("player_name")
-            .ok_or(Error::BadArgument)?,
-    )?;
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let player_name = get_str(kwargs.get("player_name").ok_or(Error::BadArgument)?)?;
+    let avatar_url = AVATAR_MANAGER
+        .lock()
+        .await
+        .save_avatar(get_str(kwargs.get("avatar").ok_or(Error::BadArgument)?)?)
+        .await?;
 
     let (game_id, player_id, auth_token, moderator_channel) =
-        STATE.add_game(player_name.to_string())?;
+        STATE.add_game(player_name.to_string(), avatar_url)?;
 
     trace!(
         "Creating game {} with moderator named {} (assigned mod channel: {:?})",
@@ -93,6 +93,11 @@ pub async fn join_game(
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let player_name = get_str(kwargs.get("player_name").ok_or(Error::BadArgument)?)?;
     let game_id = GameId(get_uuid(kwargs.get("game_id").ok_or(Error::BadArgument)?)?);
+    let avatar_url = AVATAR_MANAGER
+        .lock()
+        .await
+        .save_avatar(get_str(kwargs.get("avatar").ok_or(Error::BadArgument)?)?)
+        .await?;
 
     let (auth_token, player_id, player_channel) = {
         let games = STATE
@@ -106,7 +111,7 @@ pub async fn join_game(
             .try_write_for(OPERATION_TIMEOUT)
             .ok_or(Error::LockTimeout)?;
 
-        let player = Player::new(player_name.to_string());
+        let player = Player::new(player_name.to_string(), avatar_url);
         let auth = player.get_auth();
         let player_id = game.add_player(player);
 

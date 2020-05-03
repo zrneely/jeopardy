@@ -4,6 +4,10 @@ use wamp_async::WampError;
 #[derive(Debug)]
 pub(crate) enum Error {
     Wamp(WampError),
+    DataUrlDecode(Box<data_url::forgiving_base64::DecodeError<Error>>),
+    DataUrlFormat(data_url::DataUrlError),
+    DataUrlType,
+    Io(std::io::Error),
     LockTimeout,
     UnknownGame,
     BadArgument,
@@ -14,10 +18,26 @@ pub(crate) enum Error {
     NotAllowed,
     InvalidSquare,
     TooManyDailyDoubles,
+    AvatarTooBig,
 }
 impl From<wamp_async::WampError> for Error {
     fn from(value: WampError) -> Self {
         Error::Wamp(value)
+    }
+}
+impl From<data_url::forgiving_base64::DecodeError<Error>> for Error {
+    fn from(value: data_url::forgiving_base64::DecodeError<Error>) -> Self {
+        Error::DataUrlDecode(Box::new(value))
+    }
+}
+impl From<data_url::DataUrlError> for Error {
+    fn from(value: data_url::DataUrlError) -> Self {
+        Error::DataUrlFormat(value)
+    }
+}
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Error::Io(value)
     }
 }
 impl From<Error> for WampError {
@@ -27,6 +47,10 @@ impl From<Error> for WampError {
         WampError::UnknownError(
             match value {
                 Wamp(we) => return we,
+                DataUrlDecode(_) => "jpdy.data_url_decode",
+                DataUrlFormat(_) => "jpdy.data_url_format",
+                DataUrlType => "jpdy.avatar_data_type",
+                Io(_) => "jpdy.io_error",
                 LockTimeout => "jpdy.lock_timeout",
                 UnknownGame => "jpdy.unknown_error",
                 BadArgument => "jpdy.bad_argument",
@@ -37,6 +61,7 @@ impl From<Error> for WampError {
                 NotAllowed => "jpdy.not_allowed",
                 InvalidSquare => "jpdy.invalid_square",
                 TooManyDailyDoubles => "jpdy.too_many_daily_doubles",
+                AvatarTooBig => "jpdy.avatar_too_big",
             }
             .into(),
         )

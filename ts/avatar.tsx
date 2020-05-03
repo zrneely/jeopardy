@@ -1,7 +1,5 @@
 import React from 'react';
 
-const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAP7//wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==';
-
 enum Color {
     Black = 'black',
     Red = 'red',
@@ -35,15 +33,15 @@ interface AvatarInputProps {
     localStorageKey: string,
 }
 interface AvatarInputState {
-    image: string, // data URL
+    image: string | null, // data URL
     color: Color,
     tool: Tool,
 }
 export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputState> {
     state: AvatarInputState = {
-        image: BLANK_IMAGE,
+        image: null,
         tool: Tool.Thicc,
-        color: Color.White,
+        color: Color.Black,
     }
 
     private canvasRef = React.createRef<HTMLCanvasElement>();
@@ -73,8 +71,8 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
                 image,
             });
 
-            localStorage.setItem(this.props.localStorageKey, JSON.stringify({
-                image: image,
+            localStorage.setItem(this.props.localStorageKey, image);
+            localStorage.setItem(this.props.localStorageKey + '-tool', JSON.stringify({
                 tool: this.state.tool,
                 color: this.state.color,
             }));
@@ -83,7 +81,7 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
 
     clearImage() {
         if (this.canvasContext !== null) {
-            this.canvasContext.fillStyle = this.state.color;
+            this.canvasContext.fillStyle = Color.White;
             this.canvasContext.fillRect(0, 0, this.props.width, this.props.height);
 
             this.saveImage();
@@ -264,22 +262,23 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
                 this.canvasContext.imageSmoothingEnabled = false;
             }
 
-            const existingData = localStorage.getItem(this.props.localStorageKey);
-            if (existingData !== null) {
+            const existingImageData = localStorage.getItem(this.props.localStorageKey);
+            const existingToolData = localStorage.getItem(this.props.localStorageKey + '-tool');
+            if ((existingImageData !== null) && (existingToolData !== null)) {
                 console.log('loading existing image');
-
-                const data = JSON.parse(existingData);
 
                 const img = new Image;
                 img.onload = () => {
                     this.canvasContext?.drawImage(img, 0, 0);
                 }
-                img.src = data.image;
+                img.src = existingImageData;
+
+                const toolData = JSON.parse(existingToolData);
 
                 this.setState({
-                    image: data.image,
-                    tool: data.tool,
-                    color: data.color,
+                    image: existingImageData,
+                    tool: toolData.tool,
+                    color: toolData.color,
                 });
             } else {
                 this.clearImage();

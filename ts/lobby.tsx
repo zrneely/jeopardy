@@ -17,8 +17,8 @@ interface LobbyState {
 
 export interface LobbyProps {
     session: autobahn.Session,
-    makeGameCallback: (name: string) => void,
-    joinGameCallback: (name: string, gameId: string) => void,
+    makeGameCallback: (name: string, avatar: string) => void,
+    joinGameCallback: (name: string, avatar: string, gameId: string) => void,
 }
 
 export class Lobby extends React.Component<LobbyProps, LobbyState> {
@@ -72,7 +72,9 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
     handleMakeGameClick() {
         if (this.userNameRef.current !== null) {
             if (this.userNameRef.current.value.length !== 0) {
-                this.props.makeGameCallback(this.userNameRef.current.value);
+                this.props.makeGameCallback(
+                    this.userNameRef.current.value,
+                    localStorage.getItem('avatar')!);
             }
         }
     }
@@ -80,7 +82,10 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
     handleJoinGameClick() {
         if ((this.userNameRef.current !== null) && (this.state.selectedGame !== null)) {
             if (this.userNameRef.current.value.length !== 0) {
-                this.props.joinGameCallback(this.userNameRef.current.value, this.state.selectedGame);
+                this.props.joinGameCallback(
+                    this.userNameRef.current.value,
+                    localStorage.getItem('avatar')!,
+                    this.state.selectedGame);
             }
         }
     }

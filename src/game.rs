@@ -334,13 +334,15 @@ pub struct Player {
     name: String,
     score: i64,
     auth: AuthToken,
+    avatar_url: String,
 }
 impl Player {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, avatar_url: String) -> Self {
         Player {
             name,
             score: 0,
             auth: AuthToken(Uuid::new_v4()),
+            avatar_url,
         }
     }
 
@@ -356,6 +358,7 @@ impl Player {
         let mut result = WampDict::new();
         result.insert("name".into(), Arg::String(self.name.clone()));
         result.insert("score".into(), Arg::String(self.score.to_string()));
+        result.insert("avatar_url".into(), Arg::String(self.avatar_url.clone()));
         result
     }
 }
@@ -540,6 +543,10 @@ impl Game {
 
     pub(crate) fn get_moderator_name(&self) -> &str {
         &self.moderator.name
+    }
+
+    pub(crate) fn get_moderator_avatar_url(&self) -> &str {
+        &self.moderator.avatar_url
     }
 
     pub(crate) fn get_player_names(&self) -> Vec<&str> {

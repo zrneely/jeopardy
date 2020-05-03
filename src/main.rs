@@ -1,8 +1,10 @@
 use std::{
-    borrow::Cow, collections::HashMap, convert::TryInto, env, fmt, str::FromStr, time::Duration,
+    borrow::Cow, collections::HashMap, convert::TryInto, env, fmt, path::PathBuf, str::FromStr,
+    time::Duration,
 };
 
 use chrono::Utc;
+use futures::lock::Mutex;
 use log::*;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
@@ -13,11 +15,13 @@ use wamp_async::WampDict;
 #[macro_use]
 mod util;
 
+mod avatar;
 mod data;
 mod errors;
 mod game;
 mod server;
 
+use avatar::AvatarManager;
 use errors::Error;
 
 lazy_static::lazy_static! {
@@ -28,6 +32,19 @@ lazy_static::lazy_static! {
     static ref MSG_QUEUE: OnceCell<mpsc::UnboundedSender<Message>> = OnceCell::new();
 
     static ref CATEGORIES: OnceCell<Vec<game::Category>> = OnceCell::new();
+
+    static ref AVATAR_DIRECTORY: PathBuf = {
+        let mut buf = PathBuf::new();
+        buf.push("static");
+        buf.push("avatars");
+        buf
+    };
+
+    static ref AVATAR_MANAGER: Mutex<AvatarManager> = Mutex::new(AvatarManager::new(
+        AVATAR_DIRECTORY.clone(),
+        "avatars".into(),
+        MAX_AVATAR_SIZE
+    ).unwrap());
 }
 
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(5);
@@ -37,6 +54,7 @@ const ROUTER_PORT_ENV_NAME: &str = "JPDY_ROUTER_PORT";
 const WAMP_REALM: &str = "jpdy";
 const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
 const DATABASE_PATH: &str = "jeo_data_utf8.csv";
+const MAX_AVATAR_SIZE: usize = 16 * 1024;
 
 #[derive(Debug)]
 struct Seed {
@@ -182,9 +200,10 @@ impl JeopardyState {
     pub fn add_game(
         &self,
         moderator_name: String,
+        avatar_url: String,
     ) -> Result<(GameId, PlayerId, AuthToken, String), Error> {
         let game_id = GameId(Uuid::new_v4());
-        let moderator = game::Player::new(moderator_name);
+        let moderator = game::Player::new(moderator_name, avatar_url);
         let auth_token = moderator.get_auth();
         let game = game::Game::new(moderator);
         let user_id = game.moderator_id.clone();
@@ -217,6 +236,7 @@ impl JeopardyState {
                 let mut dict = wamp_dict! {
                     "game_id" => game_id.to_string(),
                     "moderator" => game.get_moderator_name().into(),
+                    "moderator_avatar" => game.get_moderator_avatar_url().into(),
                 };
                 let players = Arg::List(
                     game.get_player_names()
