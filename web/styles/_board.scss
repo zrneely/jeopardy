@@ -70,7 +70,7 @@ div.square.dollar-display {
 .dollar-display-negative {
     color: red;
 
-    & :before {
+    &:before {
         content: "-";
     }
 }

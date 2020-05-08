@@ -31,8 +31,9 @@ $background-color-darker: #CCC;
 
         button {
             @include default-button;
+            @include spaced-horiz;
 
-            & :hover {
+            &:hover {
                 background-color: $background-color-darker;
             }
         }
@@ -60,18 +61,20 @@ $background-color-darker: #CCC;
             padding-bottom: 3px;
             padding-top: 10px;
 
-            & :first-child {
+            &:first-child {
                 padding-top: 3px;
             }
         }
     }
 }
 
-@mixin default-button {
-    // margin-left: 5px;
-    // margin-right: 5px;
-    // padding: 4px 8px 4px 8px;
+@mixin spaced-horiz {
+    margin-left: 5px;
+    margin-right: 5px;
+    padding: 4px 8px 4px 8px;
+}
 
+@mixin default-button {
     border: 1px solid black;
     transition: background-color 0.2s ease 0s;
     transition: color 0.2s ease 0s;
@@ -80,7 +83,7 @@ $background-color-darker: #CCC;
         background-color: gray;
     }
 
-    & :not(:disabled) {
+    &:not(:disabled) {
         cursor: pointer;
     }
 }

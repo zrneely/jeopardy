@@ -2,6 +2,7 @@
   "devDependencies": {
     "@types/autobahn": "^18.10.0",
     "@types/jquery": "^3.3.34",
+    "@types/lodash.debounce": "^4.0.6",
     "@types/react": "^16.9.34",
     "@types/react-dom": "^16.9.6",
     "@types/react-modal": "^3.10.5",
@@ -22,8 +23,9 @@
   "description": "Jeopardy",
   "scripts": {
     "styles": "sass --style=expanded --embed-sources styles/index.scss:../static/index.css",
-    "build": "webpack --display-error-details --progress --mode=\"development\"",
-    "build_prod": "webpack --display-error-details --progress --mode=\"production\""
+    "scripts": "webpack --display-error-details --progress --mode=\"development\"",
+    "scripts_prod": "webpack --display-error-details --progress --mode=\"production\"",
+    "build": "npm run styles && npm run scripts"
   },
   "license": "MIT"
 }

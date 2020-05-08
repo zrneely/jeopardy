@@ -16,14 +16,14 @@ const TIMER_STEPS = 5;
 interface TimerProps {
     timeRemaining: number,
 }
-class Timer extends React.Component<TimerProps> {
+class Timer extends React.PureComponent<TimerProps> {
     render() {
         let segments = [];
         for (let i = 0; i < 9; i++) {
             if (TIMER_STATES[this.props.timeRemaining][i]) {
-                segments.push(<div key={i} className="timer-segment timer-segment-active" />);
+                segments.push(<div key={i} className="segment-active" />);
             } else {
-                segments.push(<div key={i} className="timer-segment" />)
+                segments.push(<div key={i} className="segment" />)
             }
         }
 

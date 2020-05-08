@@ -19,7 +19,7 @@ div.player-controls {
     justify-content: center;
     align-items: center;
 
-    & :hover:not([disabled]) {
+    &:hover:not(:disabled) {
         background-color: pink;
         color: black;
         cursor: pointer;

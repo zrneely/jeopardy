@@ -2,7 +2,7 @@
 
 div.moderator-controls {
     display: flex;
-    flex: column;
+    flex-direction: column;
     justify-content: center;
     flex: 2;
     margin: 5px;
@@ -24,26 +24,28 @@ div.moderator-controls-column {
 
 .eval-button-correct {
     @include common.default-button;
+    @include common.spaced-horiz;
 
     flex: 1;
     background-color: green;
     color: white;
     border: 2px solid black;
 
-    & :hover:not(:disabled) {
+    &:hover:not(:disabled) {
         background-color: lightgreen;
     }
 }
 
 .eval-button-incorrect {
     @include common.default-button;
+    @include common.spaced-horiz;
 
     flex: 1;
     background-color: darkred;
     color: white;
     border: 2px solid black;
 
-    & :hover:not(:disabled) {
+    &:hover:not(:disabled) {
         background-color: red;
     }
 
@@ -51,24 +53,26 @@ div.moderator-controls-column {
 
 button.eval-button-skip {
     @include common.default-button;
+    @include common.spaced-horiz;
 
     flex: 1;
     background-color: coral;
     color: white;
     border: 2px solid black;
 
-    & :hover:not(:disabled) {
+    &:hover:not(:disabled) {
         background-color: orange;
     }
 }
 
 button.new-board-button {
     @include common.default-button;
+    @include common.spaced-horiz;
 
     flex: 1;
     margin: 10px;
 
-    & :hover {
+    &:hover {
         background-color: common.$background-color-darker;
     }
 }
