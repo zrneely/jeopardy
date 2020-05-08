@@ -1,3 +1,5 @@
+@use 'common';
+
 div.player-controls {
     flex: 1;
 
@@ -9,15 +11,25 @@ div.player-controls {
 }
 
 .buzz-button {
+    @include common.default-button;
+
     flex: 4;
-    background-color: darkred;
-    border: 2px solid darkred;
+
     margin: 10px;
     color: white;
-    
+
     display: flex;
     justify-content: center;
     align-items: center;
+
+    &:not(:disabled) {
+        background-color: darkred;
+        border: 2px solid darkred;
+    }
+
+    &:disabled {
+        border: 2px solid black;
+    }
 
     &:hover:not(:disabled) {
         background-color: pink;
