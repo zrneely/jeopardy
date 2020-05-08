@@ -5,6 +5,7 @@
     "@types/react": "^16.9.34",
     "@types/react-dom": "^16.9.6",
     "@types/react-modal": "^3.10.5",
+    "sass": "^1.26.5",
     "ts-loader": "^6.2.2",
     "typescript": "^3.8.3",
     "webpack": "^4.42.1",
@@ -20,6 +21,7 @@
   "version": "1.0.0",
   "description": "Jeopardy",
   "scripts": {
+    "styles": "sass --style=expanded --embed-sources styles/index.scss:../static/index.css",
     "build": "webpack --display-error-details --progress --mode=\"development\"",
     "build_prod": "webpack --display-error-details --progress --mode=\"production\""
   },

@@ -16,8 +16,6 @@
         "jsx": "react"
     },
     "files": [
-        "./index.tsx",
-        "./lobby.tsx",
-        "./common.tsx"
+        "./ts/index.tsx",
     ]
 }

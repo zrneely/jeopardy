@@ -1,0 +1,97 @@
+@use 'common';
+
+div.moderator-controls {
+    display: flex;
+    flex: column;
+    justify-content: center;
+    flex: 2;
+    margin: 5px;
+    align-items: stretch;
+}
+
+div.moderator-controls-inner {
+    flex: 6;
+    display: flex;
+    flex-direction: row;
+    margin: 10px;
+}
+
+div.moderator-controls-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.eval-button-correct {
+    @include common.default-button;
+
+    flex: 1;
+    background-color: green;
+    color: white;
+    border: 2px solid black;
+
+    & :hover:not(:disabled) {
+        background-color: lightgreen;
+    }
+}
+
+.eval-button-incorrect {
+    @include common.default-button;
+
+    flex: 1;
+    background-color: darkred;
+    color: white;
+    border: 2px solid black;
+
+    & :hover:not(:disabled) {
+        background-color: red;
+    }
+
+}
+
+button.eval-button-skip {
+    @include common.default-button;
+
+    flex: 1;
+    background-color: coral;
+    color: white;
+    border: 2px solid black;
+
+    & :hover:not(:disabled) {
+        background-color: orange;
+    }
+}
+
+button.new-board-button {
+    @include common.default-button;
+
+    flex: 1;
+    margin: 10px;
+
+    & :hover {
+        background-color: common.$background-color-darker;
+    }
+}
+
+span.player-name {
+    font-weight: bold;
+    font-style: italic;
+}
+
+div.current-stats-group {
+    flex: 2;
+
+    display: flex;
+    flex-direction: column;
+}
+div.current-stats-group > p {
+    font-size: small;
+}
+
+.new-board-modal {
+    @include common.default-modal;
+
+    h3 {
+        margin: 0px;
+    }
+}

@@ -1,0 +1,39 @@
+@use 'common';
+
+@import 'lobby';
+@import 'game';
+
+html {
+    background-color: common.$background-color;
+    line-height: 1.15;
+    font-size: large;
+    height: 100%;
+}
+
+body {
+    height: 100%;
+    margin: 0;
+    font-family: sans-serif;
+}
+
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+div.no-connection-msg {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    line-height: 100%;
+    justify-content: center;
+    align-items: center;
+}
+
+input {
+    padding: 5px;
+    border: 1px solid black;
+    border-radius: 2px;
+    margin-right: 5px;
+}

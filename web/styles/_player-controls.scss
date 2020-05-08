@@ -1,0 +1,27 @@
+div.player-controls {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    margin: 5px;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.buzz-button {
+    flex: 4;
+    background-color: darkred;
+    border: 2px solid darkred;
+    margin: 10px;
+    color: white;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    & :hover:not([disabled]) {
+        background-color: pink;
+        color: black;
+        cursor: pointer;
+    }
+}

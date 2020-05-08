@@ -287,7 +287,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                     <legend>Options</legend>
                     <form onSubmit={this.handleSubmitNewGameModal}>
                         <ul className="new-board-options">
-                            <li className="board-option-label">
+                            <li className="option-label">
                                 Seed (three words, or leave blank for random):
                             </li>
                             <li>
@@ -295,7 +295,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                                 <input type="text" ref={this.newBoardSeedInputs[1]} />
                                 <input type="text" ref={this.newBoardSeedInputs[2]} />
                             </li>
-                            <li className="board-option-label">
+                            <li className="option-label">
                                 Daily Doubles:
                             </li>
                             <li>
@@ -306,7 +306,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                                     defaultValue="2"
                                     ref={this.newBoardDailyDoubleInput} />
                             </li>
-                            <li className="board-option-label">
+                            <li className="option-label">
                                 Board Type:
                             </li>
                             <li>

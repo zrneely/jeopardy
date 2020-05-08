@@ -1,0 +1,86 @@
+$jeopardy-blue: #060CE9;
+$category-title-color: #DCF9FF;
+$card-font: "Helvetica Compressed", Helvetica, sans-serif;
+$background-color: #EEE;
+$background-color-dark: #DDD;
+$background-color-darker: #CCC;
+
+@mixin default-modal {
+    position: absolute;
+    top: 25%;
+    bottom: 25%;
+    left: 25%;
+    right: 25%;
+
+    padding: 20px;
+    background-color: $background-color;
+    border-radius: 5px;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.4);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    overflow-y: auto;
+
+    .bottom-buttons {
+        align-self: flex-end;
+
+        display: flex;
+        flex-direction: row;
+
+        button {
+            @include default-button;
+
+            & :hover {
+                background-color: $background-color-darker;
+            }
+        }
+    }
+    
+    fieldset {
+        flex: 1;
+        margin: 10px;
+    }
+
+    ul {
+        list-style-type: none;
+        padding-left: 0px;
+        margin: 0px;
+
+        display: flex;
+        flex-direction: column;
+
+        li {
+            font-size: smaller;
+            margin: 0px;
+        }
+
+        .option-label {
+            padding-bottom: 3px;
+            padding-top: 10px;
+
+            & :first-child {
+                padding-top: 3px;
+            }
+        }
+    }
+}
+
+@mixin default-button {
+    // margin-left: 5px;
+    // margin-right: 5px;
+    // padding: 4px 8px 4px 8px;
+
+    border: 1px solid black;
+    transition: background-color 0.2s ease 0s;
+    transition: color 0.2s ease 0s;
+
+    &:disabled {
+        background-color: gray;
+    }
+
+    & :not(:disabled) {
+        cursor: pointer;
+    }
+}

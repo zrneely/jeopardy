@@ -6,8 +6,7 @@ node_modules/
 *.*~
 *.csv
 crossbar_test/
-static/index.js
 *.tsbuildinfo
 *.js.map
 *.bundle.js
-static/avatars/
+static/

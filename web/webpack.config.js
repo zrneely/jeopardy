@@ -3,13 +3,13 @@ const webpack = require('webpack');
 
 module.exports = {
     devtool: 'source-map',
-    entry: './index.tsx',
+    entry: './ts/index.tsx',
     module: {
         rules: [
             {
                 test: /\.ts|\.tsx$/,
                 use: 'ts-loader',
-                include: __dirname,
+                include: path.resolve(__dirname, 'ts'),
             },
         ],
     },

@@ -1,0 +1,29 @@
+@import 'player-controls';
+@import 'moderator-controls';
+@import 'player-display';
+@import 'timer';
+@import 'board';
+
+div.game {
+    height: 100%;
+
+    user-select: none;
+
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+}
+
+div.game-left-panel {
+    flex: 3;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+div.game-right-panel {
+    flex: 2;
+    overflow-y: auto;
+}

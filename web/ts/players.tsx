@@ -133,13 +133,13 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
                 <fieldset className="adjust-player-options">
                     <legend>Player Options</legend>
                     <ul className="adjust-player-options">
-                        <li className="board-option-label">
+                        <li className="option-label">
                             Player Name: {adjPlayerName}
                         </li>
-                        <li className="board-option-label">
+                        <li className="option-label">
                             Player ID: {adjPlayerId}
                         </li>
-                        <li className="board-option-label">
+                        <li className="option-label">
                             Player Score:
                     </li>
                         <li>
