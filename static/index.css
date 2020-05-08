@@ -87,6 +87,7 @@ div.game {
 }
 div.game-left-panel {
     flex: 3;
+    overflow-y: auto;
 
     display: flex;
     flex-direction: column;
@@ -256,6 +257,10 @@ fieldset.new-board-options {
     flex: 1;
     margin: 10px;
 }
+fieldset.adjust-player-options {
+    flex: 1;
+    margin: 10px;
+}
 ul.new-board-options {
     list-style-type: none;
     padding-left: 0px;
@@ -264,13 +269,25 @@ ul.new-board-options {
     display: flex;
     flex-direction: column;
 }
-.new-board-options input {
+ul.adjust-player-options {
+    list-style-type: none;
+    padding-left: 10px;
+    margin: 0px;
+
+    display: flex;
+    flex-direction: column;
+}
+input {
     padding: 5px;
     border: 1px solid black;
     border-radius: 2px;
     margin-right: 5px;
 }
 .new-board-options li {
+    font-size: smaller;
+    margin: 0px;
+}
+.adjust-player-options li {
     font-size: smaller;
     margin: 0px;
 }
@@ -456,6 +473,7 @@ div.clue-panel-answer {
 
 div.game-right-panel {
     flex: 2;
+    overflow-y: auto;
 }
 .players-list {
     display: flex;
@@ -484,11 +502,13 @@ div.game-right-panel {
 .players-list-entry-moderator:hover {
     cursor: pointer;
     background-color: #ccc;
+    transition: background-color 0.2s ease 0s;
 }
 .players-list-entry-name {
     font-size: larger;
     padding-top: 5px;
     padding-bottom: 5px;
+    overflow-x: auto;
 }
 
 .adjust-score-modal {

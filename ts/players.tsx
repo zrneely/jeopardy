@@ -20,8 +20,15 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
     constructor(props: PlayersListProps) {
         super(props);
 
+        this.handleOpenAdjustScoreModal = this.handleOpenAdjustScoreModal.bind(this);
         this.handleCloseAdjustScoreModal = this.handleCloseAdjustScoreModal.bind(this);
         this.handleSubmitAdjustScoreModal = this.handleSubmitAdjustScoreModal.bind(this);
+    }
+
+    handleOpenAdjustScoreModal() {
+        if (this.adjustScoreModalScoreField.current !== null) {
+            this.adjustScoreModalScoreField.current.focus();
+        }
     }
 
     activateAdjustScoreModal(playerId: string) {
@@ -97,6 +104,12 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
             players.push(entry);
         }
 
+        let adjPlayerId = this.state.playerIdAdjusting || '';
+
+        let adjPlayerName = this.state.playerIdAdjusting === null ?
+            '' :
+            this.props.players[this.state.playerIdAdjusting].name;
+
         let adjPlayerScore = this.state.playerIdAdjusting === null ?
             0 :
             this.props.players[this.state.playerIdAdjusting].score;
@@ -108,6 +121,7 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
 
             <ReactModal
                 isOpen={this.state.playerIdAdjusting !== null}
+                onAfterOpen={this.handleOpenAdjustScoreModal}
                 onRequestClose={this.handleCloseAdjustScoreModal}
                 shouldCloseOnEsc={true}
                 shouldCloseOnOverlayClick={true}
@@ -116,9 +130,26 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
                 className="adjust-score-modal"
                 contentLabel="Change Player Score...">
 
-                <h3>View/Change Player Properties</h3>
-
-                <input type="number" defaultValue={adjPlayerScore} ref={this.adjustScoreModalScoreField} />
+                <fieldset className="adjust-player-options">
+                    <legend>Player Options</legend>
+                    <ul className="adjust-player-options">
+                        <li className="board-option-label">
+                            Player Name: {adjPlayerName}
+                        </li>
+                        <li className="board-option-label">
+                            Player ID: {adjPlayerId}
+                        </li>
+                        <li className="board-option-label">
+                            Player Score:
+                    </li>
+                        <li>
+                            <input
+                                type="number"
+                                defaultValue={adjPlayerScore}
+                                ref={this.adjustScoreModalScoreField} />
+                        </li>
+                    </ul>
+                </fieldset>
 
                 <div className="bottom-buttons">
                     <button onClick={this.handleCloseAdjustScoreModal} type="button">Cancel</button>
