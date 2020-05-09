@@ -55,6 +55,7 @@ export class Game extends React.Component<GameProps, GameState> {
                     state: ServerData.SquareState.Normal,
                     clue: undefined,
                     answer: undefined,
+                    is_daily_double: undefined,
                 });
             }
 
@@ -68,7 +69,6 @@ export class Game extends React.Component<GameProps, GameState> {
         return {
             value_multiplier: '1',
             categories,
-            daily_doubles: [],
             etag: 0,
             id: -1,
             seed: '',
@@ -317,6 +317,8 @@ export class Game extends React.Component<GameProps, GameState> {
                 <Board
                     data={this.state.board}
                     isModerator={this.state.isModerator}
+                    isControllingPlayer={this.state.controller === this.props.joinInfo.playerId}
+                    activity={this.state.currentActivity}
                     squareClickedCallback={this.boardSquareClicked} />
                 {controls}
             </div>

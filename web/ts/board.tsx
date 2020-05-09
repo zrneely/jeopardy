@@ -1,5 +1,5 @@
 import React from 'react';
-import { ServerData, handleError } from './common'
+import { ServerData, handleError, Activity } from './common'
 
 interface SquareProps {
     data: ServerData.Square,
@@ -76,9 +76,16 @@ class Category extends React.PureComponent<CategoryProps> {
     }
 }
 
+interface FlippedSquareResult {
+    square: ServerData.Square,
+    categoryTitle: string,
+    value: number,
+}
 interface BoardProps {
     data: ServerData.Board,
     isModerator: boolean,
+    isControllingPlayer: boolean,
+    activity: Activity,
     squareClickedCallback: (location: ServerData.BoardLocation) => void,
 }
 export class Board extends React.PureComponent<BoardProps> {
@@ -92,15 +99,15 @@ export class Board extends React.PureComponent<BoardProps> {
         this.props.squareClickedCallback({ row, category });
     }
 
-    findFlippedSquare(): [ServerData.Square, string, number] | null {
+    findFlippedSquare(): FlippedSquareResult | null {
         for (let category of this.props.data.categories) {
             for (let i = 0; i < category.squares.length; i++) {
                 if (category.squares[i].state === ServerData.SquareState.Flipped) {
-                    return [
-                        category.squares[i],
-                        category.title,
-                        +this.props.data.value_multiplier * (i + 1)
-                    ];
+                    return {
+                        square: category.squares[i],
+                        categoryTitle: category.title,
+                        value: +this.props.data.value_multiplier * (i + 1),
+                    };
                 }
             }
         }
@@ -111,22 +118,20 @@ export class Board extends React.PureComponent<BoardProps> {
         let flipResult = this.findFlippedSquare();
         let cluePanel: React.ReactElement;
         if (flipResult !== null) {
-            let [activeSquare, categoryTitle, value] = flipResult;
-
             let answer;
             if (this.props.isModerator) {
-                answer = <div className="clue-panel-answer">Answer: {activeSquare.answer}</div>;
+                answer = <div className="clue-panel-answer">Answer: {flipResult.square.answer}</div>;
             } else {
                 answer = <div className="clue-panel-answer">&nbsp;</div>;
             }
 
             let clueMediaEmbed = null;
-            if (activeSquare.clue?.link !== undefined) {
-                switch (activeSquare.clue?.link.split('.').pop()) {
+            if (flipResult.square.clue?.link !== undefined) {
+                switch (flipResult.square.clue?.link.split('.').pop()) {
                     case 'mp3':
                     case 'wav': {
                         clueMediaEmbed = <div className="clue-panel-clue-img">
-                            <audio src={activeSquare.clue?.link} />
+                            <audio src={flipResult.square.clue?.link} />
                         </div>;
                         break;
                     }
@@ -134,7 +139,7 @@ export class Board extends React.PureComponent<BoardProps> {
                     case 'jpg':
                     case 'png': {
                         clueMediaEmbed = <div className="clue-panel-clue-img">
-                            <img src={activeSquare.clue?.link} />
+                            <img src={flipResult.square.clue?.link} />
                         </div>;
                         break;
                     }
@@ -143,7 +148,7 @@ export class Board extends React.PureComponent<BoardProps> {
                     case 'mov':
                     case 'wmv': {
                         clueMediaEmbed = <div className="clue-panel-clue-img">
-                            <video src={activeSquare.clue?.link} />
+                            <video src={flipResult.square.clue?.link} />
                         </div>;
                         break;
                     }
@@ -157,14 +162,30 @@ export class Board extends React.PureComponent<BoardProps> {
                 }
             }
 
-            cluePanel = <div className="clue-panel">
+            let className = 'clue-panel';
+            let dailyDoubleIndicator = '';
+            let dailyDoubleInput = null;
+            if ((this.props.activity === Activity.WaitForDailyDoubleWager) ||
+                (this.props.activity === Activity.DailyDoubleWager)) {
+                className += ' clue-panel-dd';
+                dailyDoubleIndicator = ' (Daily Double)';
+
+                if (this.props.isControllingPlayer) {
+                    dailyDoubleInput = <div className="daily-double-input">
+                        TODO daily double input
+                    </div>;
+                }
+            }
+
+            cluePanel = <div className={className}>
                 <div className="clue-panel-category-ident">
-                    {categoryTitle} - ${value}
+                    {flipResult.categoryTitle} - ${flipResult.value} {dailyDoubleIndicator}
                 </div>
                 {clueMediaEmbed}
                 <div className="clue-panel-clue-text">
-                    {activeSquare.clue?.text}
+                    {flipResult.square.clue?.text}
                 </div>
+                {dailyDoubleInput}
                 {answer}
             </ div>;
         } else {

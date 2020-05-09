@@ -14,7 +14,6 @@ const CATEGORY_HEIGHT: usize = 5;
 
 const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
     categories: Vec::new(),
-    daily_doubles: Vec::new(),
     value_multiplier: 0,
     etag: 0,
     id: 0,
@@ -121,7 +120,6 @@ impl Location {
 #[derive(Debug)]
 struct JeopardyBoard {
     categories: Vec<Category>,
-    daily_doubles: Vec<Location>,
     value_multiplier: i64, // base values are "1, 2, 3, ..." going down a column
 
     // Helpful for change tracking on the client. The etag
@@ -137,6 +135,10 @@ struct JeopardyBoard {
     seed: Seed,
 }
 impl JeopardyBoard {
+    fn get_square(&self, location: &Location) -> &Square {
+        &self.categories[location.category].squares[location.row]
+    }
+
     fn get_square_mut(&mut self, location: &Location) -> &mut Square {
         self.etag += 1;
         &mut self.categories[location.category].squares[location.row]
@@ -147,10 +149,10 @@ impl JeopardyBoard {
     }
 
     fn is_daily_double(&self, location: &Location) -> bool {
-        self.daily_doubles.iter().any(|loc| loc == location)
+        self.get_square(location).is_daily_double
     }
 
-    fn serialize(&self, for_moderator: bool) -> WampDict {
+    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
         let mut result = WampDict::new();
 
         result.insert(
@@ -167,22 +169,10 @@ impl JeopardyBoard {
             Arg::List(
                 self.categories
                     .iter()
-                    .map(|cat| Arg::Dict(cat.serialize(for_moderator)))
+                    .map(|cat| Arg::Dict(cat.serialize(for_moderator, daily_double_entered)))
                     .collect(),
             ),
         );
-
-        if for_moderator {
-            result.insert(
-                "daily_doubles".into(),
-                Arg::List(
-                    self.daily_doubles
-                        .iter()
-                        .map(|dd| Arg::Dict(dd.serialize()))
-                        .collect(),
-                ),
-            );
-        }
 
         result
     }
@@ -195,7 +185,7 @@ pub struct Category {
     pub squares: [Square; CATEGORY_HEIGHT],
 }
 impl Category {
-    fn serialize(&self, for_moderator: bool) -> WampDict {
+    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
         let mut result = WampDict::new();
 
         result.insert(
@@ -212,7 +202,7 @@ impl Category {
             Arg::List(
                 self.squares
                     .iter()
-                    .map(|square| Arg::Dict(square.serialize(for_moderator)))
+                    .map(|square| Arg::Dict(square.serialize(for_moderator, daily_double_entered)))
                     .collect(),
             ),
         );
@@ -226,6 +216,7 @@ pub struct Square {
     clue: Clue,
     state: SquareState,
     answer: Cow<'static, str>,
+    is_daily_double: bool,
 }
 impl Square {
     pub fn new(clue: Clue, answer: String) -> Self {
@@ -233,10 +224,11 @@ impl Square {
             clue,
             answer: Cow::Owned(answer),
             state: SquareState::Normal,
+            is_daily_double: false,
         }
     }
 
-    fn serialize(&self, for_moderator: bool) -> WampDict {
+    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
         let mut result = WampDict::new();
         result.insert("state".into(), Arg::String(self.state.to_string()));
 
@@ -246,13 +238,14 @@ impl Square {
                 "answer".into(),
                 Arg::String(self.answer.to_owned().to_string()),
             );
+            result.insert("is_daily_double".into(), Arg::Bool(self.is_daily_double));
         } else {
-            match self.state {
-                SquareState::Normal => {}
-                SquareState::Flipped => {
+            match (&self.state, daily_double_entered) {
+                (SquareState::Normal, _) | (SquareState::DailyDoubleRevealed, false) => {}
+                (SquareState::Flipped, _) | (SquareState::DailyDoubleRevealed, true) => {
                     result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
                 }
-                SquareState::Finished => {
+                (SquareState::Finished, _) => {
                     result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
                     result.insert(
                         "answer".into(),
@@ -267,7 +260,13 @@ impl Square {
 
     fn flip(&mut self) -> Result<(), Error> {
         self.state = match self.state {
-            SquareState::Normal => SquareState::Flipped,
+            SquareState::Normal => {
+                if self.is_daily_double {
+                    SquareState::DailyDoubleRevealed
+                } else {
+                    SquareState::Flipped
+                }
+            }
             _ => return Err(Error::InvalidSquareStateTransition),
         };
 
@@ -276,7 +275,7 @@ impl Square {
 
     fn finish(&mut self) -> Result<(), Error> {
         self.state = match self.state {
-            SquareState::Flipped => SquareState::Finished,
+            SquareState::Flipped | SquareState::DailyDoubleRevealed => SquareState::Finished,
             _ => return Err(Error::InvalidSquareStateTransition),
         };
 
@@ -291,6 +290,7 @@ impl Square {
 #[derive(Debug, Clone)]
 pub enum SquareState {
     Normal,
+    DailyDoubleRevealed,
     Flipped,
     Finished,
 }
@@ -298,6 +298,7 @@ impl fmt::Display for SquareState {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             SquareState::Normal => write!(fmt, "Normal"),
+            SquareState::DailyDoubleRevealed => write!(fmt, "DailyDoubleRevealed"),
             SquareState::Flipped => write!(fmt, "Flipped"),
             SquareState::Finished => write!(fmt, "Finished"),
         }
@@ -391,25 +392,31 @@ enum GameState {
 }
 impl GameState {
     fn serialize_helper(
+        &self,
         result: &mut WampDict,
         board: &JeopardyBoard,
         controller: Option<&PlayerId>,
         for_moderator: bool,
     ) {
-        result.insert("board".into(), Arg::Dict(board.serialize(for_moderator)));
+        let daily_double_entered = !matches!(self, GameState::WaitingForDailyDoubleWager { .. });
+        result.insert(
+            "board".into(),
+            Arg::Dict(board.serialize(for_moderator, daily_double_entered)),
+        );
         if let Some(player_id) = controller {
             result.insert("controller".into(), Arg::String(player_id.to_string()));
         }
     }
 
     fn serialize_helper2(
+        &self,
         result: &mut WampDict,
         board: &JeopardyBoard,
         controller: Option<&PlayerId>,
         location: &Location,
         for_moderator: bool,
     ) {
-        GameState::serialize_helper(result, board, controller, for_moderator);
+        self.serialize_helper(result, board, controller, for_moderator);
         result.insert("location".into(), Arg::Dict(location.serialize()));
     }
 
@@ -426,7 +433,7 @@ impl GameState {
                     "type".into(),
                     Arg::String("WaitingForSquareSelection".into()),
                 );
-                GameState::serialize_helper(&mut result, board, controller.as_ref(), for_moderator);
+                self.serialize_helper(&mut result, board, controller.as_ref(), for_moderator);
             }
 
             GameState::WaitingForDailyDoubleWager {
@@ -438,7 +445,7 @@ impl GameState {
                     "type".into(),
                     Arg::String("WaitingForDailyDoubleWager".into()),
                 );
-                GameState::serialize_helper2(
+                self.serialize_helper2(
                     &mut result,
                     board,
                     Some(controller),
@@ -456,7 +463,7 @@ impl GameState {
                     "type".into(),
                     Arg::String("WaitingForBuzzer".into()),
                 );
-                GameState::serialize_helper2(
+                self.serialize_helper2(
                     &mut result,
                     board,
                     Some(controller),
@@ -476,7 +483,7 @@ impl GameState {
                     "type".into(),
                     Arg::String("WaitingForAnswer".into()),
                 );
-                GameState::serialize_helper2(
+                self.serialize_helper2(
                     &mut result,
                     board,
                     Some(controller),
@@ -690,18 +697,21 @@ impl Game {
             .map(|_| self.get_random_category(&mut rng))
             .collect();
 
-        Some(Box::new(JeopardyBoard {
+        let mut board = Box::new(JeopardyBoard {
             categories,
             value_multiplier: multiplier,
-            daily_doubles: Location::gen_random_locations(
-                &mut rng,
-                daily_double_count,
-                category_count,
-            )?,
             etag: 0,
             id,
             seed,
-        }))
+        });
+
+        let daily_doubles =
+            Location::gen_random_locations(&mut rng, daily_double_count, category_count)?;
+        for location in daily_doubles {
+            board.get_square_mut(&location).is_daily_double = true;
+        }
+
+        Some(board)
     }
 
     fn get_random_category<R: Rng>(&self, rng: &mut R) -> Category {

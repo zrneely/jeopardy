@@ -48,6 +48,7 @@ export namespace ServerData {
 
     export enum SquareState {
         Normal = 'Normal',
+        DailyDoubleRevealed = 'DailyDoubleRevealed',
         Flipped = 'Flipped',
         Finished = 'Finished',
     }
@@ -62,6 +63,7 @@ export namespace ServerData {
         state: SquareState,
         clue: Clue | undefined,
         answer: string | undefined,
+        is_daily_double: boolean | undefined,
     }
 
     export interface Clue {
@@ -78,7 +80,6 @@ export namespace ServerData {
     export interface Board {
         value_multiplier: string,
         categories: Category[],
-        daily_doubles: BoardLocation[] | undefined,
         etag: number,
         id: number,
         seed: string,

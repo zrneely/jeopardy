@@ -98,6 +98,23 @@ div.clue-panel {
     align-items: center;
     text-shadow: 2px 2px black;
 }
+div.clue-panel-dd {
+    background: linear-gradient(254deg, #060ce9, #066b6a, #e97b06);
+    background-size: 600% 600%;
+    
+    animation: DailyDoubleAnim 5s linear infinite;
+}
+@keyframes DailyDoubleAnim {
+    0% {
+        background-position: 0% 65%;
+    }
+    50% {
+        background-position: 100% 36%;
+    }
+    100% {
+        background-position: 0% 65%;
+    }
+}
 
 div.clue-panel-category-ident {
     padding-top: 5px;
