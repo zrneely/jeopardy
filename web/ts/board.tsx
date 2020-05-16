@@ -48,21 +48,17 @@ class Category extends React.PureComponent<CategoryProps> {
         this.props.squareClickedCallback(this.props.categoryIndex, row);
     }
 
-    render() {
-        let commentary;
-        if (this.props.data.commentary !== undefined) {
-            commentary = <div className="category-commentary">
-                {this.props.data.commentary}
-            </div>;
-        } else {
-            commentary = <div className="category-commentary-invis"></div>
-        }
+    static parseCommentary(text: string | undefined): string | undefined {
+        if (text === undefined) { return text; }
 
+        return text.replace('Alex: ', '');
+    }
+
+    render() {
         return <div className="category">
-            <div className="category-title">
-                {this.props.data.title}
+            <div className="category-title" title={Category.parseCommentary(this.props.data.commentary)}>
+                {this.props.data.title}{this.props.data.commentary !== undefined ? '*' : ''}
             </div>
-            {commentary}
             {this.props.data.squares.map((square, idx) => {
                 return <Square
                     data={square}
