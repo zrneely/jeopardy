@@ -141,13 +141,14 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
                         </li>
                         <li className="option-label">
                             Player Score:
-                    </li>
+                        </li>
                         <li>
                             <input
                                 type="number"
                                 defaultValue={adjPlayerScore}
                                 ref={this.adjustScoreModalScoreField} />
                         </li>
+                        {/*todo: kick, rename, clear avatar, make controller, make active*/}
                     </ul>
                 </fieldset>
 

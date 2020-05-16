@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ChangeEvent } from 'react';
 import { ServerData, handleError, Activity } from './common'
 
 interface SquareProps {
@@ -86,23 +86,58 @@ interface BoardProps {
     isModerator: boolean,
     isControllingPlayer: boolean,
     activity: Activity,
+    playerScore: number,
     squareClickedCallback: (location: ServerData.BoardLocation) => void,
+    dailyDoubleSubmitCallback: (wager: number) => void,
 }
-export class Board extends React.PureComponent<BoardProps> {
+interface BoardState {
+    dailyDoubleWager: number,
+}
+export class Board extends React.PureComponent<BoardProps, BoardState> {
     constructor(props: BoardProps) {
         super(props);
 
         this.handleSquareClicked = this.handleSquareClicked.bind(this);
+        this.handleDailyDoubleWagerChange = this.handleDailyDoubleWagerChange.bind(this);
+        this.handleSubmitDailyDoubleWager = this.handleSubmitDailyDoubleWager.bind(this);
+    }
+
+    state = {
+        dailyDoubleWager: 0,
     }
 
     handleSquareClicked(category: number, row: number) {
         this.props.squareClickedCallback({ row, category });
     }
 
+    handleDailyDoubleWagerChange(e: ChangeEvent<HTMLInputElement>) {
+        console.log('handleDailyDoubleWagerChange');
+        this.setState({
+            dailyDoubleWager: e.target.valueAsNumber,
+        });
+    }
+
+    handleSubmitDailyDoubleWager() {
+        this.props.dailyDoubleSubmitCallback(this.state.dailyDoubleWager);
+        this.setState({
+            dailyDoubleWager: 0,
+        });
+    }
+
+    componentDidUpdate() {
+        // Ensure that the wager doesn't go above the player's score
+        if (this.state.dailyDoubleWager > this.getMaxWager()) {
+            this.setState({
+                dailyDoubleWager: this.getMaxWager(),
+            });
+        }
+    }
+
     findFlippedSquare(): FlippedSquareResult | null {
         for (let category of this.props.data.categories) {
             for (let i = 0; i < category.squares.length; i++) {
-                if (category.squares[i].state === ServerData.SquareState.Flipped) {
+                if ((category.squares[i].state === ServerData.SquareState.Flipped) ||
+                    (category.squares[i].state === ServerData.SquareState.DailyDoubleRevealed)) {
                     return {
                         square: category.squares[i],
                         categoryTitle: category.title,
@@ -112,6 +147,12 @@ export class Board extends React.PureComponent<BoardProps> {
             }
         }
         return null;
+    }
+
+    getMaxWager(): number {
+        // The maximum wager is either your score or the largest value on the board,
+        // whatever is larger.
+        return Math.max(this.props.playerScore, +this.props.data.value_multiplier * 5);
     }
 
     render() {
@@ -162,30 +203,53 @@ export class Board extends React.PureComponent<BoardProps> {
                 }
             }
 
+            let clueElementTemp = null;
             let className = 'clue-panel';
             let dailyDoubleIndicator = '';
-            let dailyDoubleInput = null;
             if ((this.props.activity === Activity.WaitForDailyDoubleWager) ||
                 (this.props.activity === Activity.DailyDoubleWager)) {
                 className += ' clue-panel-dd';
                 dailyDoubleIndicator = ' (Daily Double)';
 
                 if (this.props.isControllingPlayer) {
-                    dailyDoubleInput = <div className="daily-double-input">
-                        TODO daily double input
+                    clueElementTemp = <div className="daily-double-input">
+                        <div>
+                            Enter your daily double wager:
+                        </div>
+                        <div className="labels">
+                            <span>$0</span>
+                            <span>${this.getMaxWager()}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={this.getMaxWager()}
+                            step="1"
+                            value={this.state.dailyDoubleWager}
+                            onChange={this.handleDailyDoubleWagerChange} />
+                        <input
+                            type="number"
+                            min={0}
+                            max={this.getMaxWager()}
+                            value={this.state.dailyDoubleWager}
+                            onChange={this.handleDailyDoubleWagerChange} />
+                        <button onClick={this.handleSubmitDailyDoubleWager}>
+                            Submit
+                        </button>
                     </div>;
                 }
             }
+
+            let clueElement = clueElementTemp || <div className="clue-panel-clue-text">
+                {flipResult.square.clue?.text}
+            </div>;
 
             cluePanel = <div className={className}>
                 <div className="clue-panel-category-ident">
                     {flipResult.categoryTitle} - ${flipResult.value} {dailyDoubleIndicator}
                 </div>
                 {clueMediaEmbed}
-                <div className="clue-panel-clue-text">
-                    {flipResult.square.clue?.text}
-                </div>
-                {dailyDoubleInput}
+                {clueElement}
                 {answer}
             </ div>;
         } else {

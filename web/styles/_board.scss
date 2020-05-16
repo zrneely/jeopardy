@@ -134,6 +134,35 @@ div.clue-panel-clue-text {
     align-items: center;
 }
 
+div.daily-double-input {
+    flex: 4;
+    width: 80%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    
+    .labels {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    input[type=range] {
+        width: 100%;
+    }
+
+    button {
+        @include common.default-button;
+        margin-top: 15px;
+        border: 1px solid black;
+        border-radius: 5%;
+        padding: 5px;
+    }
+}
+
 div.clue-panel-answer {
     flex: 1;
     padding-bottom: 5px;

@@ -39,6 +39,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.getEmptyBoard = this.getEmptyBoard.bind(this);
         this.newBoardClicked = this.newBoardClicked.bind(this);
         this.boardSquareClicked = this.boardSquareClicked.bind(this);
+        this.dailyDoubleWagerSubmitted = this.dailyDoubleWagerSubmitted.bind(this);
         this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
         this.buzzClicked = this.buzzClicked.bind(this);
         this.adjustScore = this.adjustScore.bind(this);
@@ -186,6 +187,21 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    dailyDoubleWagerSubmitted(wager: number) {
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            wager: wager.toString(),
+        };
+
+        this.props.session.call('jpdy.submit_wager', [], argument).then(() => {
+            console.log('submit wager call succeeded!');
+        }, (error) => {
+            handleError('submit wager call failed', error, false);
+        })
+    }
+
     evalAnswerClicked(answer: ServerData.AnswerType) {
         if (!this.state.isModerator) {
             return;
@@ -312,6 +328,11 @@ export class Game extends React.Component<GameProps, GameState> {
                 buzzerClicked={this.buzzClicked} />;
         }
 
+        let playerScore = 0;
+        if (this.state.players[this.props.joinInfo.playerId]) {
+            playerScore = +this.state.players[this.props.joinInfo.playerId].score;
+        }
+
         return <div className="game">
             <div className="game-left-panel">
                 <Board
@@ -319,7 +340,9 @@ export class Game extends React.Component<GameProps, GameState> {
                     isModerator={this.state.isModerator}
                     isControllingPlayer={this.state.controller === this.props.joinInfo.playerId}
                     activity={this.state.currentActivity}
-                    squareClickedCallback={this.boardSquareClicked} />
+                    playerScore={playerScore}
+                    squareClickedCallback={this.boardSquareClicked}
+                    dailyDoubleSubmitCallback={this.dailyDoubleWagerSubmitted} />
                 {controls}
             </div>
             <div className="game-right-panel">
