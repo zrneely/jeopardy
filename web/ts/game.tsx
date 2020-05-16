@@ -198,16 +198,16 @@ export class Game extends React.Component<GameProps, GameState> {
 
         this.props.session.call('jpdy.submit_wager', [], argument).then(() => {
             console.log('submit wager call succeeded!');
+
+            if (this.controlPanel.current !== null) {
+                this.controlPanel.current.startTimer();
+            }
         }, (error) => {
             handleError('submit wager call failed', error, false);
         })
     }
 
     evalAnswerClicked(answer: ServerData.AnswerType) {
-        if (this.controlPanel.current !== null) {
-            this.controlPanel.current.stopTimer();
-        }
-
         if (!this.state.isModerator) {
             return;
         }
@@ -221,6 +221,10 @@ export class Game extends React.Component<GameProps, GameState> {
 
         this.props.session.call('jpdy.answer', [], argument).then(() => {
             console.log('answer call succeeded!');
+
+            if (this.controlPanel.current !== null) {
+                this.controlPanel.current.stopTimer();
+            }
         }, (error) => {
             handleError('answer call failed', error, false);
         });
@@ -294,12 +298,24 @@ export class Game extends React.Component<GameProps, GameState> {
         }
     }
 
+    // Used to start/stop timers triggered by remote actions
     componentDidUpdate(_: any, prevState: GameState) {
-        if ((prevState.currentActivity === Activity.WaitForEval) &&
-            (this.state.currentActivity !== Activity.WaitForEval) &&
-            (this.controlPanel.current !== null)) {
+        if (this.controlPanel.current !== null) {
+            // If we're a player and the moderator evaluated an answer,
+            // stop the timer.
+            if ((prevState.currentActivity === Activity.WaitForEval) &&
+                (this.state.currentActivity !== Activity.WaitForEval)) {
 
-            this.controlPanel.current.stopTimer();
+                this.controlPanel.current.stopTimer();
+            }
+
+            // If we're a moderator and the player submitted their daily double
+            // wager, start the timer.
+            if ((prevState.currentActivity === Activity.WaitForDailyDoubleWager) &&
+                (this.state.currentActivity === Activity.EvaluateAnswer)) {
+
+                this.controlPanel.current.startTimer();
+            }
         }
     }
 
