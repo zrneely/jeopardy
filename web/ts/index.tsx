@@ -55,7 +55,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     });
 
     this.connection.onopen = (session) => {
-      console.log('game server connection open!');
+      console.log('WAMP connection open!');
 
       this.setState({
         session: session,
@@ -114,7 +114,6 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       return;
     }
 
-    console.log('making game');
     this.state.session.call<autobahn.Result>('jpdy.new_game', [], {
       player_name: playerName,
       avatar,

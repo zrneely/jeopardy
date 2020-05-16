@@ -130,7 +130,7 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
         const pixelsToCheck = [x, y];
         while (pixelsToCheck.length > 1) {
             if (checked > checkLimit) {
-                console.log('checked to many; bailing!');
+                console.warn('flood fill checked to many pixels; bailing!');
                 break;
             }
 
@@ -206,7 +206,6 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
     canvasMouseMove(e: React.PointerEvent) {
         if (this.isMouseDown && this.canvasContext !== null) {
             const [x, y] = this.fixCoords(e);
-            console.log('mousemove', x, y, e.pressure);
 
             switch (this.state.tool) {
                 case Tool.Thin: {
@@ -265,8 +264,6 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
             const existingImageData = localStorage.getItem(this.props.localStorageKey);
             const existingToolData = localStorage.getItem(this.props.localStorageKey + '-tool');
             if ((existingImageData !== null) && (existingToolData !== null)) {
-                console.log('loading existing image');
-
                 const img = new Image;
                 img.onload = () => {
                     this.canvasContext?.drawImage(img, 0, 0);

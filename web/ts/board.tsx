@@ -106,7 +106,6 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
     }
 
     handleDailyDoubleWagerChange(e: ChangeEvent<HTMLInputElement>) {
-        console.log('handleDailyDoubleWagerChange');
         this.setState({
             dailyDoubleWager: e.target.valueAsNumber,
         });

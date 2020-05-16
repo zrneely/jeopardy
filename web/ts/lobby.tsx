@@ -62,7 +62,6 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
     }
 
     componentWillUnmount() {
-        console.log('componentWillUnmount: Lobby');
         if (this.subscription !== null) {
             this.props.session.unsubscribe(this.subscription);
             this.subscription = null;

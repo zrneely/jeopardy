@@ -131,9 +131,6 @@ export class Game extends React.Component<GameProps, GameState> {
 
     // Looks at the state update from the server and converts it to a new GameState.
     loadNewState(update: ServerData.GameStateUpdate) {
-        console.log('game state update from server');
-        console.log(update);
-
         if (update.is_ended) {
             this.props.leaveGameCallback();
         }

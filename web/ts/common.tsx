@@ -1,5 +1,5 @@
 export function handleError(msg: string, error: any, clearData: boolean) {
-    console.log(`${msg}: ${JSON.stringify(error)}`);
+    console.error(`${msg}: ${JSON.stringify(error)}`);
     alert(msg);
 
     if (clearData) {
