@@ -618,6 +618,184 @@ impl Game {
         id
     }
 
+    pub(crate) fn remove_player(&mut self, player_id: PlayerId) -> bool {
+        if !self.players.contains_key(&player_id) {
+            return false;
+        }
+
+        self.players.remove(&player_id);
+        // Will be none if there are no longer any players
+        let new_player = self.players.keys().next();
+
+        let new_state = match (&mut self.state, new_player) {
+            (GameState::NoBoard, _) => GameState::NoBoard,
+
+            // If we're waiting for square selection, then it's valid to have a
+            // controlling player, or not to. The new controller is either an
+            // arbitrary other player, or nobody, in which case the only valid
+            // action is adding a new player.
+            (
+                GameState::WaitingForSquareSelection {
+                    controller,
+                    ref mut board,
+                },
+                new_player,
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                GameState::WaitingForSquareSelection {
+                    controller: if controller
+                        .as_ref()
+                        .map(|c| *c == player_id)
+                        .unwrap_or(false)
+                    {
+                        new_player.cloned()
+                    } else {
+                        controller.clone()
+                    },
+                    board: new_board,
+                }
+            }
+
+            // If we're waiting for the buzzer and there's another player
+            // who can become the controller, make them the controller.
+            (
+                GameState::WaitingForBuzzer {
+                    controller,
+                    ref mut board,
+                    location,
+                },
+                Some(new_player),
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                GameState::WaitingForBuzzer {
+                    controller: if *controller == player_id {
+                        new_player.clone()
+                    } else {
+                        controller.clone()
+                    },
+                    board: new_board,
+                    location: *location,
+                }
+            }
+
+            // If we're waiting for the buzzer and there's no players left,
+            // finish the square and go back to WaitingForSquareSelection with
+            // no controller.
+            (
+                GameState::WaitingForBuzzer {
+                    ref mut board,
+                    location,
+                    controller,
+                },
+                None,
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                if *controller == player_id {
+                    new_board
+                        .get_square_mut(location)
+                        .set_flip_state(SquareState::Finished);
+
+                    GameState::WaitingForSquareSelection {
+                        controller: None,
+                        board: new_board,
+                    }
+                } else {
+                    GameState::WaitingForBuzzer {
+                        board: new_board,
+                        location: *location,
+                        controller: controller.clone(),
+                    }
+                }
+            }
+
+            // If we're waiting for an answer, and the active player leaves the game,
+            // finish the square and go back to WaitingForSquareSelection.
+            (
+                GameState::WaitingForAnswer {
+                    ref mut board,
+                    location,
+                    controller,
+                    active_player,
+                    value,
+                },
+                new_player,
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                let new_controller = if *controller == player_id {
+                    new_player.cloned()
+                } else {
+                    Some(controller.clone())
+                };
+
+                if *active_player == player_id {
+                    new_board
+                        .get_square_mut(location)
+                        .set_flip_state(SquareState::Finished);
+
+                    GameState::WaitingForSquareSelection {
+                        controller: new_controller,
+                        board: new_board,
+                    }
+                } else {
+                    // If there's now no players left, it must be the case that
+                    // the active player, controller, and removal target are all
+                    // the same player. Therefore, if we get here, there must have
+                    // been multiple players prior to the remove call, and there
+                    // will be a new controller.
+                    GameState::WaitingForAnswer {
+                        board: new_board,
+                        location: *location,
+                        controller: new_controller.expect("no new controller"),
+                        active_player: active_player.clone(),
+                        value: *value,
+                    }
+                }
+            }
+
+            // If the player making a daily double wager leaves, always finish the square
+            // then just go back to WaitingForSquareSelection.
+            (
+                GameState::WaitingForDailyDoubleWager {
+                    ref mut board,
+                    location,
+                    controller,
+                },
+                new_player,
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                if *controller == player_id {
+                    new_board
+                        .get_square_mut(location)
+                        .set_flip_state(SquareState::Finished);
+
+                    GameState::WaitingForSquareSelection {
+                        board: new_board,
+                        controller: new_player.cloned(),
+                    }
+                } else {
+                    GameState::WaitingForDailyDoubleWager {
+                        board: new_board,
+                        location: *location,
+                        controller: controller.clone(),
+                    }
+                }
+            }
+        };
+
+        self.state = new_state;
+        true
+    }
+
     pub(crate) fn load_new_board(
         &mut self,
         multiplier: i64,

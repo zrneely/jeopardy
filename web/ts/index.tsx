@@ -103,6 +103,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   }
 
   leaveGame() {
+    localStorage.removeItem(LS_KEY_CUR_GAME);
     this.setState({
       currentJoinInfo: null,
     });

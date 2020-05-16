@@ -393,6 +393,7 @@ async fn main() {
         // Meta functions
         "jpdy.new_game" => server::make_game,
         "jpdy.join" => server::join_game,
+        "jpdy.leave" => server::leave_game,
         "jpdy.list_games" => server::get_games,
         "jpdy.game_state" => server::get_game_state,
 

@@ -142,6 +142,42 @@ pub async fn join_game(
     ))
 }
 
+pub async fn leave_game(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    debug!("leave_game");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    let target = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        match game.auth_and_get_player_type(&player_id, &auth) {
+            Some(PlayerType::Moderator) => {
+                game.remove_player(target);
+            }
+            Some(PlayerType::Player) if player_id == target => {
+                game.remove_player(target);
+            }
+            _ => return Err(Error::NotAllowed.into()),
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
 /// Get the list of open games.
 pub async fn get_games(_: WampArgs, _: WampKwArgs) -> Result<(WampArgs, WampKwArgs), WampError> {
     info!("get_games");
@@ -207,6 +243,15 @@ pub async fn end_game(
     }
 
     STATE.broadcast_game_state_update(&game_id).await?;
+    MSG_QUEUE
+        .get()
+        .unwrap()
+        .send(Message {
+            topic: GAME_LOBBY_CHANNEL.into(),
+            args: None,
+            kwargs: Some(STATE.get_games()?),
+        })
+        .unwrap();
     Ok((None, None))
 }
 

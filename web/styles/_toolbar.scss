@@ -1,0 +1,62 @@
+@use 'common';
+
+.toolbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: common.$background-color-dark;
+    margin: 5px;
+    margin-bottom: 0px;
+    padding-left: 5px;
+    border: 1px solid black;
+
+    .player-name {
+        font-size: smaller;
+        font-weight: bold;
+        padding-bottom: 2px;
+        padding-top: 2px;
+    }
+
+    .dropdown-container {
+        display: inline-block;
+        position: relative;
+
+        .dropdown-toggle {
+            background-color: common.$background-color-darker;
+            cursor: pointer;
+            border: none;
+            height: 100%;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            z-index: 2;
+            background-color: common.$background-color-dark;
+            border: 1px solid black;
+            box-shadow: -5px 5px 5px rgba(0, 0, 0, 0.4);
+            margin: 0 auto;
+            text-align: center;
+            white-space: nowrap;
+            width: auto;
+
+            ul {
+                list-style: none;
+                padding: 0px;
+                margin: 0px;
+
+                li {
+                    padding: 5px;
+                    cursor: pointer;
+
+                    &:hover {
+                        background-color: common.$background-color-darker;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -3,6 +3,7 @@
 @import 'player-display';
 @import 'timer';
 @import 'board';
+@import 'toolbar';
 
 div.game {
     height: 100%;
@@ -26,4 +27,7 @@ div.game-left-panel {
 div.game-right-panel {
     flex: 2;
     overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
 }

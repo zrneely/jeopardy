@@ -4,6 +4,7 @@ import { GameJoinInfo, ServerData, handleError, Activity } from './common';
 import { Board } from './board';
 import { ModeratorControls, PlayerControls, ControlPanel } from './controls';
 import { PlayersList } from './players';
+import { Toolbar } from './toolbar';
 
 interface GameState {
     isModerator: boolean,
@@ -44,6 +45,8 @@ export class Game extends React.Component<GameProps, GameState> {
         this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
         this.buzzClicked = this.buzzClicked.bind(this);
         this.adjustScore = this.adjustScore.bind(this);
+        this.leaveGameClicked = this.leaveGameClicked.bind(this);
+        this.endGameClicked = this.endGameClicked.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -265,6 +268,45 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
+    leaveGameClicked() {
+        if (this.state.isModerator) {
+            return;
+        }
+
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+            target: this.props.joinInfo.playerId,
+        };
+
+        this.props.session.call('jpdy.leave', [], argument).then(() => {
+            console.log('leave game call succeeded!');
+            this.props.leaveGameCallback();
+        }, (error) => {
+            handleError('leave game call failed', error, true);
+        });
+    }
+
+    endGameClicked() {
+        if (!this.state.isModerator) {
+            return;
+        }
+
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+        };
+
+        this.props.session.call('jpdy.end_game', [], argument).then(() => {
+            console.log('end game call succeeded!');
+            this.props.leaveGameCallback();
+        }, (error) => {
+            handleError('end game call failed', error, true);
+        });
+    }
+
     componentDidMount() {
         let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
             'game_id': this.props.joinInfo.gameId,
@@ -302,6 +344,12 @@ export class Game extends React.Component<GameProps, GameState> {
             // stop the timer.
             if ((prevState.currentActivity === Activity.WaitForEval) &&
                 (this.state.currentActivity !== Activity.WaitForEval)) {
+
+                this.controlPanel.current.stopTimer();
+            }
+
+            if ((prevState.currentActivity === Activity.EvaluateAnswer) &&
+                (this.state.currentActivity === Activity.Moderate)) {
 
                 this.controlPanel.current.stopTimer();
             }
@@ -369,8 +417,10 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let playerScore = 0;
+        let playerName = 'Moderator';
         if (this.state.players[this.props.joinInfo.playerId]) {
             playerScore = +this.state.players[this.props.joinInfo.playerId].score;
+            playerName = this.state.players[this.props.joinInfo.playerId].name;
         }
 
         return <div className="game">
@@ -386,6 +436,11 @@ export class Game extends React.Component<GameProps, GameState> {
                 {controls}
             </div>
             <div className="game-right-panel">
+                <Toolbar
+                    playerName={playerName}
+                    isModerator={this.state.isModerator}
+                    leaveGameCallback={this.leaveGameClicked}
+                    endGameCallback={this.endGameClicked} />
                 <PlayersList
                     isModerator={this.state.isModerator}
                     players={this.state.players}
