@@ -50,7 +50,6 @@ class Category extends React.PureComponent<CategoryProps> {
 
     static parseCommentary(text: string | undefined): string | undefined {
         if (text === undefined) { return text; }
-
         return text.replace('Alex: ', '');
     }
 

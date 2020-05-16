@@ -97,6 +97,14 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
     }
 
     render() {
+        function listOrDefault<T, U>(a: Array<T>, orElse: () => U): Array<T> | U {
+            if (a.length === 0) {
+                return orElse();
+            } else {
+                return a;
+            }
+        }
+
         let gameList;
         if (this.state.openGames === null) {
             gameList = <h4>Loading open games...</h4>;
@@ -115,8 +123,10 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
                             <label htmlFor={id}>
                                 {openGame.moderator}'s Game - Players:
                                 <ul>
-                                    {openGame.players.map((player, i) => {
+                                    {listOrDefault(openGame.players.map((player, i) => {
                                         return <li key={i}>{player}</li>;
+                                    }), () => {
+                                        return <li><i>No players yet!</i></li>;
                                     })}
                                 </ul>
                             </label>
