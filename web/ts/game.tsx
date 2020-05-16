@@ -2,7 +2,7 @@ import autobahn from 'autobahn';
 import React from 'react';
 import { GameJoinInfo, ServerData, handleError, Activity } from './common';
 import { Board } from './board';
-import { ModeratorControls, PlayerControls } from './controls';
+import { ModeratorControls, PlayerControls, ControlPanel } from './controls';
 import { PlayersList } from './players';
 
 interface GameState {
@@ -31,6 +31,7 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
+    private controlPanel: React.RefObject<ControlPanel> = React.createRef();
 
     constructor(props: GameProps) {
         super(props);
@@ -95,7 +96,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 case 'WaitingForSquareSelection': return Activity.Wait;
                 case 'WaitingForBuzzer': return Activity.Buzz;
                 case 'WaitingForDailyDoubleWager': return Activity.DailyDoubleWager;
-                case 'WaitingForAnswer': return Activity.Wait;
+                case 'WaitingForAnswer': return Activity.WaitForEval;
                 default: {
                     handleError('unknown game state', '', true);
                     return Activity.Wait;
@@ -203,6 +204,10 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     evalAnswerClicked(answer: ServerData.AnswerType) {
+        if (this.controlPanel.current !== null) {
+            this.controlPanel.current.stopTimer();
+        }
+
         if (!this.state.isModerator) {
             return;
         }
@@ -283,11 +288,31 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     componentWillUnmount() {
-        console.log('componentWillUnmount: Game');
         if (this.gameUpdateSubscription !== null) {
             this.props.session.unsubscribe(this.gameUpdateSubscription);
             this.gameUpdateSubscription = null;
         }
+    }
+
+    componentDidUpdate(_: any, prevState: GameState) {
+        if ((prevState.currentActivity === Activity.WaitForEval) &&
+            (this.state.currentActivity !== Activity.WaitForEval) &&
+            (this.controlPanel.current !== null)) {
+
+            this.controlPanel.current.stopTimer();
+        }
+    }
+
+    isModeratorControl(
+        _item: React.RefObject<ControlPanel>
+    ): _item is React.RefObject<ModeratorControls> {
+        return this.state.isModerator;
+    }
+
+    isPlayerControl(
+        _item: React.RefObject<ControlPanel>
+    ): _item is React.RefObject<PlayerControls> {
+        return !this.state.isModerator;
     }
 
     render() {
@@ -306,8 +331,9 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let controls;
-        if (this.state.isModerator) {
+        if (this.isModeratorControl(this.controlPanel)) {
             controls = <ModeratorControls
+                ref={this.controlPanel}
                 activity={this.state.currentActivity}
                 controllingPlayer={controllerName}
                 activePlayer={activeName}
@@ -316,8 +342,9 @@ export class Game extends React.Component<GameProps, GameState> {
                 newBoardClicked={this.newBoardClicked}
                 evalButtonClicked={this.evalAnswerClicked}
                 buzzerClicked={this.buzzClicked} />;
-        } else {
+        } else if (this.isPlayerControl(this.controlPanel)) {
             controls = <PlayerControls
+                ref={this.controlPanel}
                 activity={this.state.currentActivity}
                 controllingPlayer={controllerName}
                 activePlayer={activeName}

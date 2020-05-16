@@ -2,6 +2,11 @@ import React from 'react';
 import ReactModal from 'react-modal';
 import { Activity, handleError, ServerData } from './common'
 
+export interface ControlPanel {
+    startTimer: () => void,
+    stopTimer: () => void,
+}
+
 const TIMER_STATES = [
     [false, false, false, false, false, false, false, false, false],
     [false, false, false, false, true, false, false, false, false],
@@ -54,7 +59,10 @@ interface ModeratorControlsState {
     selectedBoardType: BoardType,
     timerTimeRemaining: number,
 }
-export class ModeratorControls extends React.Component<ControlsProps, ModeratorControlsState> {
+export class ModeratorControls
+    extends React.Component<ControlsProps, ModeratorControlsState>
+    implements ControlPanel {
+
     state: ModeratorControlsState = {
         newGameModalOpen: false,
         selectedBoardType: BoardType.Normal,
@@ -86,10 +94,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
     componentDidUpdate(prevProps: ControlsProps) {
         if ((this.props.activity === Activity.EvaluateAnswer) &&
             (prevProps.activity !== Activity.EvaluateAnswer)) {
-            this.setState({
-                timerTimeRemaining: TIMER_STEPS,
-            });
-            setTimeout(this.handleTimerFired, TIMER_DELAY);
+            this.startTimer();
         }
     }
 
@@ -193,6 +198,19 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
 
     handleEvalSkipClicked() {
         this.props.evalButtonClicked(ServerData.AnswerType.Skip);
+    }
+
+    startTimer() {
+        this.setState({
+            timerTimeRemaining: TIMER_STEPS,
+        });
+        setTimeout(this.handleTimerFired, TIMER_DELAY);
+    }
+
+    stopTimer() {
+        this.setState({
+            timerTimeRemaining: 0,
+        });
     }
 
     render() {
@@ -354,7 +372,10 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
 interface PlayerControlsState {
     timerTimeRemaining: number,
 }
-export class PlayerControls extends React.Component<ControlsProps, PlayerControlsState> {
+export class PlayerControls
+    extends React.Component<ControlsProps, PlayerControlsState>
+    implements ControlPanel {
+
     state: PlayerControlsState = {
         timerTimeRemaining: 0,
     };
@@ -381,12 +402,22 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
 
     handleBuzzClicked() {
         if (this.state.timerTimeRemaining === 0) {
-            this.setState({
-                timerTimeRemaining: TIMER_STEPS,
-            });
-            setTimeout(this.handleTimerFired, TIMER_DELAY);
+            this.startTimer();
             this.props.buzzerClicked();
         }
+    }
+
+    startTimer() {
+        this.setState({
+            timerTimeRemaining: TIMER_STEPS,
+        });
+        setTimeout(this.handleTimerFired, TIMER_DELAY);
+    }
+
+    stopTimer() {
+        this.setState({
+            timerTimeRemaining: 0,
+        });
     }
 
     render() {

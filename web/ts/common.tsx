@@ -22,6 +22,7 @@ export enum Activity {
     WaitForDailyDoubleWager,
     Buzz,               // player only
     DailyDoubleWager,   // player only
+    WaitForEval,        // player only
     EvaluateAnswer,     // moderator only
 }
 
