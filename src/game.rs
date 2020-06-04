@@ -995,66 +995,102 @@ impl Game {
     }
 
     pub(crate) fn answer(&mut self, answer: AnswerType) -> Result<(), Error> {
-        let new_controller = match &mut self.state {
-            GameState::WaitingForAnswer {
-                active_player,
-                value,
-                controller,
-                ..
-            } => {
+        match (&mut self.state, answer) {
+            // On a correct answer, the active player becomes the controller and the question ends.
+            (
+                GameState::WaitingForAnswer {
+                    active_player,
+                    value,
+                    location,
+                    ref mut board,
+                    ..
+                },
+                AnswerType::Correct,
+            ) => {
                 let player = self
                     .players
                     .get_mut(&active_player)
                     .ok_or(Error::NoSuchPlayer)?;
-                match answer {
-                    AnswerType::Correct => {
-                        player.score += *value;
-                        active_player.clone()
-                    }
-                    AnswerType::Incorrect => {
-                        player.score -= *value;
-                        controller.clone()
-                    }
-                    AnswerType::Skip => controller.clone(),
-                }
-            }
-
-            GameState::WaitingForBuzzer { controller, .. } => controller.clone(),
-            GameState::WaitingForDailyDoubleWager { controller, .. } => controller.clone(),
-
-            _ => return Err(Error::InvalidStateForOperation),
-        };
-
-        let new_state = match &mut self.state {
-            GameState::WaitingForAnswer {
-                ref mut board,
-                location,
-                ..
-            }
-            | GameState::WaitingForBuzzer {
-                ref mut board,
-                location,
-                ..
-            }
-            | GameState::WaitingForDailyDoubleWager {
-                ref mut board,
-                location,
-                ..
-            } => {
-                board.get_square_mut(location).finish()?;
+                player.score += *value;
 
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
-                GameState::WaitingForSquareSelection {
+
+                new_board.get_square_mut(location).finish()?;
+
+                self.state = GameState::WaitingForSquareSelection {
                     board: new_board,
-                    controller: Some(new_controller),
+                    controller: Some(active_player.clone()),
                 }
             }
 
-            _ => return Err(Error::InvalidStateForOperation),
+            // On an incorrect answer, the controller does not change, and the question does not end.
+            (
+                GameState::WaitingForAnswer {
+                    active_player,
+                    value,
+                    controller,
+                    location,
+                    board,
+                },
+                AnswerType::Incorrect,
+            ) => {
+                let player = self
+                    .players
+                    .get_mut(&active_player)
+                    .ok_or(Error::NoSuchPlayer)?;
+                player.score -= *value;
+
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                self.state = GameState::WaitingForBuzzer {
+                    board: new_board,
+                    controller: controller.clone(),
+                    location: *location,
+                };
+            }
+
+            // On a skip, the question ends, and the controller does not change.
+            (
+                GameState::WaitingForAnswer {
+                    controller,
+                    board,
+                    location,
+                    ..
+                },
+                AnswerType::Skip,
+            )
+            | (
+                GameState::WaitingForBuzzer {
+                    controller,
+                    board,
+                    location,
+                },
+                AnswerType::Skip,
+            )
+            | (
+                GameState::WaitingForDailyDoubleWager {
+                    controller,
+                    board,
+                    location,
+                },
+                AnswerType::Skip,
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                new_board.get_square_mut(location).finish()?;
+
+                self.state = GameState::WaitingForSquareSelection {
+                    board: new_board,
+                    controller: Some(controller.clone()),
+                };
+            }
+
+            (_, _) => return Err(Error::InvalidStateForOperation),
         };
 
-        self.state = new_state;
         Ok(())
     }
 
