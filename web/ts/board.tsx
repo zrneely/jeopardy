@@ -53,7 +53,10 @@ class Category extends React.PureComponent<CategoryProps> {
         if (text.length > 0) {
             text += ' ';
         }
-        return text.replace('Alex: ', '') + `(Air Date: ${air_year})`;
+        return text.replace('Alex: ', '')
+            .replace('(', '')
+            .replace(')', '')
+            + `(Air Date: ${air_year})`;
     }
 
     render() {

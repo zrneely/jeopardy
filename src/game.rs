@@ -812,6 +812,7 @@ impl Game {
                 seed,
             )
             .ok_or(Error::TooManyDailyDoubles)?;
+        let new_controller = self.get_random_player_with_lowest_score();
 
         let new_state = match &self.state {
             GameState::NoBoard => {
@@ -819,21 +820,17 @@ impl Game {
                 GameState::WaitingForSquareSelection { board, controller }
             }
 
-            GameState::WaitingForSquareSelection { controller, .. } => {
-                GameState::WaitingForSquareSelection {
-                    board,
-                    controller: controller.clone(),
-                }
-            }
+            GameState::WaitingForSquareSelection { .. } => GameState::WaitingForSquareSelection {
+                board,
+                controller: new_controller,
+            },
 
-            GameState::WaitingForAnswer { controller, .. }
-            | GameState::WaitingForDailyDoubleWager { controller, .. }
-            | GameState::WaitingForBuzzer { controller, .. } => {
-                GameState::WaitingForSquareSelection {
-                    board,
-                    controller: Some(controller.clone()),
-                }
-            }
+            GameState::WaitingForAnswer { .. }
+            | GameState::WaitingForDailyDoubleWager { .. }
+            | GameState::WaitingForBuzzer { .. } => GameState::WaitingForSquareSelection {
+                board,
+                controller: new_controller,
+            },
         };
 
         self.state = new_state;
