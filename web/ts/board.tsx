@@ -82,7 +82,7 @@ class Category extends React.PureComponent<CategoryProps> {
 
 interface FlippedSquareResult {
     square: ServerData.Square,
-    categoryTitle: string,
+    category: ServerData.Category,
     value: number,
 }
 interface BoardProps {
@@ -143,7 +143,7 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
                     (category.squares[i].state === ServerData.SquareState.DailyDoubleRevealed)) {
                     return {
                         square: category.squares[i],
-                        categoryTitle: category.title,
+                        category,
                         value: +this.props.data.value_multiplier * (i + 1),
                     };
                 }
@@ -225,20 +225,24 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
                         </div>
                         <input
                             type="range"
-                            min={0}
+                            min={5}
                             max={this.getMaxWager()}
                             step="1"
                             value={this.state.dailyDoubleWager}
                             onChange={this.handleDailyDoubleWagerChange} />
                         <input
                             type="number"
-                            min={0}
+                            min={5}
                             max={this.getMaxWager()}
                             value={this.state.dailyDoubleWager}
                             onChange={this.handleDailyDoubleWagerChange} />
                         <button onClick={this.handleSubmitDailyDoubleWager}>
                             Submit
                         </button>
+                    </div>;
+                } else if (!this.props.isModerator) {
+                    clueElementTemp = <div className="daily-double-input">
+                        Another player is entering their daily double wager.
                     </div>;
                 }
             }
@@ -249,7 +253,8 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
 
             cluePanel = <div className={className}>
                 <div className="clue-panel-category-ident">
-                    {flipResult.categoryTitle} - ${flipResult.value} {dailyDoubleIndicator}
+                    {flipResult.category.title} ({flipResult.category.air_year}) - ${flipResult.value}
+                    {dailyDoubleIndicator}
                 </div>
                 {clueMediaEmbed}
                 {clueElement}
