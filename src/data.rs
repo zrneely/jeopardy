@@ -9,6 +9,8 @@ use crate::game::{Category, Clue, Square};
 struct Row {
     row_id: u64,
     game_id: u64,
+    air_date: String,
+    air_year: String,
     r#type: RowType,
     cat_id: String,
     q_id: String,
