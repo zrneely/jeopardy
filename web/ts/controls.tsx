@@ -168,10 +168,16 @@ export class ModeratorControls
         switch (e.target.value) {
             case BoardType.Normal: {
                 boardType = BoardType.Normal;
+                if (this.newBoardDailyDoubleInput.current !== null) {
+                    this.newBoardDailyDoubleInput.current.value = '1';
+                }
                 break;
             }
             case BoardType.DoubleJeopardy: {
                 boardType = BoardType.DoubleJeopardy;
+                if (this.newBoardDailyDoubleInput.current !== null) {
+                    this.newBoardDailyDoubleInput.current.value = '2';
+                }
                 break;
             }
             case BoardType.FinalJeopardy: {
@@ -321,7 +327,7 @@ export class ModeratorControls
                                     type="number"
                                     min="0"
                                     max="30"
-                                    defaultValue="2"
+                                    defaultValue={this.state.selectedBoardType == BoardType.Normal ? 1 : 2}
                                     ref={this.newBoardDailyDoubleInput} />
                             </li>
                             <li className="option-label">
