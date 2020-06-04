@@ -180,18 +180,17 @@ impl JeopardyBoard {
 
 #[derive(Debug, Clone)]
 pub struct Category {
-    pub title: Cow<'static, str>,
+    pub title: String,
     pub commentary: Option<String>,
+    pub air_year: String,
     pub squares: [Square; CATEGORY_HEIGHT],
 }
 impl Category {
     fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
         let mut result = WampDict::new();
 
-        result.insert(
-            "title".into(),
-            Arg::String(self.title.to_owned().to_string()),
-        );
+        result.insert("title".into(), Arg::String(self.title.clone()));
+        result.insert("air_year".into(), Arg::String(self.air_year.clone()));
 
         if let Some(ref commentary) = self.commentary {
             result.insert("commentary".into(), Arg::String(commentary.clone()));

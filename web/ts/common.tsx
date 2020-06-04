@@ -74,6 +74,7 @@ export namespace ServerData {
 
     export interface Category {
         title: string,
+        air_year: string,
         commentary: string | undefined,
         squares: Square[],
     }

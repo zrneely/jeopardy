@@ -158,6 +158,8 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
                 <AvatarInput width={200} height={200} localStorageKey="avatar" />
                 <hr />
                 <small>Games created more than 24 hours ago are automatically deleted.</small>
+                <br />
+                <small>Hover over category titles for more information.</small>
             </div>
         </div>;
     }

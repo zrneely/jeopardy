@@ -1,4 +1,4 @@
-use std::{borrow::Cow, path::Path};
+use std::path::Path;
 
 use itertools::Itertools;
 use serde::Deserialize;
@@ -76,7 +76,8 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
         }
 
         categories.push(Category {
-            title: Cow::Owned(group[0].category.clone()),
+            title: group[0].category.clone(),
+            air_year: group[0].air_year.clone(),
             commentary: if group[0].category_comm.is_empty() {
                 None
             } else {

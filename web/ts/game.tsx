@@ -66,6 +66,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
             categories.push({
                 title: `Category ${i}`,
+                air_year: '',
                 commentary: undefined,
                 squares,
             });
