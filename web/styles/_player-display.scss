@@ -30,6 +30,12 @@
     align-items: center;
     justify-content: space-evenly;
 }
+.players-list-entry-active {
+    background-color: rgb(118, 118, 209);
+}
+.players-list-entry-controller {
+    background-color: skyblue;
+}
 .players-list-entry-moderator:hover {
     cursor: pointer;
     background-color: #ccc;

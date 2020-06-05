@@ -11,8 +11,8 @@ interface GameState {
     currentActivity: Activity,
     board: ServerData.Board,
     players: { [player_id: string]: ServerData.Player },
-    controller: string | null, // player ID
-    activePlayer: string | null, // player ID
+    controllerId: string | null,
+    activePlayerId: string | null,
 }
 
 export interface GameProps {
@@ -27,8 +27,8 @@ export class Game extends React.Component<GameProps, GameState> {
         currentActivity: Activity.Wait,
         board: this.getEmptyBoard(),
         players: {},
-        controller: null,
-        activePlayer: null,
+        controllerId: null,
+        activePlayerId: null,
     }
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
@@ -114,7 +114,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
     getController(gameState: ServerData.RemoteGameState): string | null {
         if (gameState.type === 'NoBoard') {
-            return this.state.controller;
+            return this.state.controllerId;
         } else {
             return gameState.controller || null;
         }
@@ -147,8 +147,8 @@ export class Game extends React.Component<GameProps, GameState> {
             currentActivity: this.getActivity(update.state, update.is_moderator),
             isModerator: update.is_moderator,
             players: update.players,
-            controller: this.getController(update.state),
-            activePlayer: this.getActivePlayer(update.state),
+            controllerId: this.getController(update.state),
+            activePlayerId: this.getActivePlayer(update.state),
         });
     }
 
@@ -400,17 +400,17 @@ export class Game extends React.Component<GameProps, GameState> {
 
     render() {
         let controllerName;
-        if (this.state.controller === null) {
+        if (this.state.controllerId === null) {
             controllerName = null;
         } else {
-            controllerName = this.state.players[this.state.controller].name;
+            controllerName = this.state.players[this.state.controllerId].name;
         }
 
         let activeName;
-        if (this.state.activePlayer === null) {
+        if (this.state.activePlayerId === null) {
             activeName = null;
         } else {
-            activeName = this.state.players[this.state.activePlayer].name;
+            activeName = this.state.players[this.state.activePlayerId].name;
         }
 
         let controls;
@@ -452,7 +452,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 <Board
                     data={this.state.board}
                     isModerator={this.state.isModerator}
-                    isControllingPlayer={this.state.controller === this.props.joinInfo.playerId}
+                    isControllingPlayer={this.state.controllerId === this.props.joinInfo.playerId}
                     activity={this.state.currentActivity}
                     playerScore={playerScore}
                     squareClickedCallback={this.boardSquareClicked}
@@ -468,7 +468,9 @@ export class Game extends React.Component<GameProps, GameState> {
                 <PlayersList
                     isModerator={this.state.isModerator}
                     players={this.state.players}
-                    adjScoreCallback={this.adjustScore} />
+                    adjScoreCallback={this.adjustScore}
+                    controllerId={this.state.controllerId}
+                    activePlayerId={this.state.activePlayerId} />
             </div>
         </div>;
     }

@@ -4,6 +4,8 @@ import { ServerData } from './common';
 
 interface PlayersListProps {
     isModerator: boolean,
+    controllerId: string | null,
+    activePlayerId: string | null,
     players: { [playerId: string]: ServerData.Player },
     adjScoreCallback: (playerId: string, newScore: number) => void,
 }
@@ -55,6 +57,23 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
         });
     }
 
+    getCssClassesForPlayer(playerId: string) {
+        let base = ['players-list-entry'];
+        if (playerId === this.props.activePlayerId) {
+            base.push('players-list-entry-active');
+        } else if (playerId === this.props.controllerId) {
+            base.push('players-list-entry-controller');
+        } else {
+            base.push('players-list-entry');
+        }
+
+        if (this.props.isModerator) {
+            base.push('players-list-entry-moderator');
+        }
+
+        return base.join(' ');
+    }
+
     render() {
         let keys = Object.keys(this.props.players);
         let orderedPlayerIds = [];
@@ -82,10 +101,12 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
                 </span>;
             }
 
+            const classes = this.getCssClassesForPlayer(playerId);
+
             let entry;
             if (this.props.isModerator) {
                 entry = <li
-                    className="players-list-entry players-list-entry-moderator"
+                    className={classes}
                     key={playerId}
                     onClick={this.activateAdjustScoreModal.bind(this, playerId)}>
 
@@ -94,7 +115,7 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
                     {score}
                 </li>;
             } else {
-                entry = <li className="players-list-entry" key={playerId}>
+                entry = <li className={classes} key={playerId}>
                     <img className="player-avatar" src={player.avatar_url} width="150" height="150" />
                     <div className="players-list-entry-name">{player.name}</div>
                     {score}
