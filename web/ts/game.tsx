@@ -42,6 +42,7 @@ export class Game extends React.Component<GameProps, GameState> {
         this.newBoardClicked = this.newBoardClicked.bind(this);
         this.boardSquareClicked = this.boardSquareClicked.bind(this);
         this.dailyDoubleWagerSubmitted = this.dailyDoubleWagerSubmitted.bind(this);
+        this.enableBuzzerClicked = this.enableBuzzerClicked.bind(this);
         this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
         this.buzzClicked = this.buzzClicked.bind(this);
         this.adjustScore = this.adjustScore.bind(this);
@@ -86,6 +87,7 @@ export class Game extends React.Component<GameProps, GameState> {
             switch (gameState.type) {
                 case 'NoBoard': return Activity.Moderate;
                 case 'WaitingForSquareSelection': return Activity.Moderate;
+                case 'WaitingForEnableBuzzer': return Activity.EnableBuzzer;
                 case 'WaitingForBuzzer': return Activity.WaitForBuzz;
                 case 'WaitingForDailyDoubleWager': return Activity.WaitForDailyDoubleWager;
                 case 'WaitingForAnswer': return Activity.EvaluateAnswer;
@@ -98,6 +100,7 @@ export class Game extends React.Component<GameProps, GameState> {
             switch (gameState.type) {
                 case 'NoBoard': return Activity.Wait;
                 case 'WaitingForSquareSelection': return Activity.Wait;
+                case 'WaitingForEnableBuzzer': return Activity.Wait;
                 case 'WaitingForBuzzer': return Activity.Buzz;
                 case 'WaitingForDailyDoubleWager': return Activity.DailyDoubleWager;
                 case 'WaitingForAnswer': return Activity.WaitForEval;
@@ -228,6 +231,24 @@ export class Game extends React.Component<GameProps, GameState> {
             }
         }, (error) => {
             handleError('answer call failed', error, false);
+        });
+    }
+
+    enableBuzzerClicked() {
+        if (!this.state.isModerator) {
+            return;
+        }
+
+        let argument: { [k: string]: string } = {
+            game_id: this.props.joinInfo.gameId,
+            player_id: this.props.joinInfo.playerId,
+            auth: this.props.joinInfo.token,
+        };
+
+        this.props.session.call('jpdy.enable_buzzer', [], argument).then(() => {
+            console.log('enable buzzer call succeeded!');
+        }, (error) => {
+            handleError('enable buzzer call failed', error, false);
         });
     }
 
@@ -403,6 +424,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 isBoardLoaded={this.state.board.id !== -1}
                 newBoardClicked={this.newBoardClicked}
                 evalButtonClicked={this.evalAnswerClicked}
+                enableBuzzerClicked={this.enableBuzzerClicked}
                 buzzerClicked={this.buzzClicked} />;
         } else if (this.isPlayerControl(this.controlPanel)) {
             controls = <PlayerControls
@@ -414,6 +436,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 isBoardLoaded={this.state.board.id !== -1}
                 newBoardClicked={this.newBoardClicked}
                 evalButtonClicked={this.evalAnswerClicked}
+                enableBuzzerClicked={this.enableBuzzerClicked}
                 buzzerClicked={this.buzzClicked} />;
         }
 

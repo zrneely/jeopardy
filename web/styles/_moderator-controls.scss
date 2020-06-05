@@ -51,7 +51,7 @@ div.moderator-controls-column {
 
 }
 
-button.eval-button-skip {
+.eval-button-skip {
     @include common.default-button;
     @include common.spaced-horiz;
 
@@ -62,6 +62,20 @@ button.eval-button-skip {
 
     &:hover:not(:disabled) {
         background-color: orange;
+    }
+}
+
+.eval-button-enable-buzzer {
+    @include common.default-button;
+    @include common.spaced-horiz;
+
+    flex: 1;
+    background-color: lightskyblue;
+    color: black;
+    border: 2px solid black;
+
+    &:hover:not(:disabled) {
+        background-color: lightblue;
     }
 }
 

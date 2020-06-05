@@ -23,6 +23,7 @@ export enum Activity {
     Buzz,               // player only
     DailyDoubleWager,   // player only
     WaitForEval,        // player only
+    EnableBuzzer,       // moderator only
     EvaluateAnswer,     // moderator only
 }
 
@@ -109,6 +110,13 @@ export namespace ServerData {
         location: BoardLocation,
     }
 
+    export interface WaitingForEnableBuzzer {
+        type: 'WaitingForEnableBuzzer',
+        board: Board,
+        controller: string,
+        location: BoardLocation,
+    }
+
     export interface WaitingForBuzzer {
         type: 'WaitingForBuzzer',
         board: Board,
@@ -128,6 +136,7 @@ export namespace ServerData {
         NoBoard |
         WaitingForSquareSelection |
         WaitingForDailyDoubleWager |
+        WaitingForEnableBuzzer |
         WaitingForBuzzer |
         WaitingForAnswer;
 }

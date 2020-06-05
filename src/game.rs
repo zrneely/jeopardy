@@ -6,7 +6,7 @@ use rand::{seq::SliceRandom, Rng, SeedableRng};
 use uuid::Uuid;
 use wamp_async::{Arg, WampDict};
 
-use crate::{errors::Error, AuthToken, PlayerId, Seed, CATEGORIES};
+use crate::{errors::Error, seed::Seed, AuthToken, PlayerId, CATEGORIES};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
 const MIN_MAX_DAILY_DOUBLE_WAGER: i64 = 1000;
@@ -17,7 +17,7 @@ const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
     value_multiplier: 0,
     etag: 0,
     id: 0,
-    seed: Seed { value: 0 },
+    seed: Seed::with_seed(0),
 };
 
 // Raw counts: 10, 433, 998, 1433, 945
@@ -371,6 +371,11 @@ enum GameState {
         // ID of whoever's controlling the board, or None if there are no players yet
         controller: Option<PlayerId>,
     },
+    WaitingForEnableBuzzer {
+        board: Box<JeopardyBoard>,
+        location: Location,
+        controller: PlayerId,
+    },
     WaitingForDailyDoubleWager {
         board: Box<JeopardyBoard>,
         location: Location,
@@ -433,6 +438,20 @@ impl GameState {
                     Arg::String("WaitingForSquareSelection".into()),
                 );
                 self.serialize_helper(&mut result, board, controller.as_ref(), for_moderator);
+            }
+
+            GameState::WaitingForEnableBuzzer { board, controller, location } => {
+                result.insert(
+                    "type".into(),
+                    Arg::String("WaitingForEnableBuzzer".into()),
+                );
+                self.serialize_helper2(
+                    &mut result,
+                    board,
+                    Some(controller),
+                    location,
+                    for_moderator,
+                );
             }
 
             GameState::WaitingForDailyDoubleWager {
@@ -662,7 +681,7 @@ impl Game {
             (
                 GameState::WaitingForBuzzer {
                     controller,
-                    ref mut board,
+                    board,
                     location,
                 },
                 Some(new_player),
@@ -681,12 +700,44 @@ impl Game {
                 }
             }
 
-            // If we're waiting for the buzzer and there's no players left,
-            // finish the square and go back to WaitingForSquareSelection with
-            // no controller.
+            // If we're waiting to enable the buzzer and there's another player who
+            // can become the controller, make them the controller.
+            (
+                GameState::WaitingForEnableBuzzer {
+                    controller,
+                    board,
+                    location,
+                },
+                Some(new_player),
+            ) => {
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+
+                GameState::WaitingForEnableBuzzer {
+                    controller: if *controller == player_id {
+                        new_player.clone()
+                    } else {
+                        controller.clone()
+                    },
+                    board: new_board,
+                    location: *location,
+                }
+            }
+
+            // If we're waiting for the buzzer (or to enable the buzzer) and there's
+            // no players left, finish the square and go back to WaitingForSquareSelection
+            // with no controller.
             (
                 GameState::WaitingForBuzzer {
-                    ref mut board,
+                    board,
+                    location,
+                    controller,
+                },
+                None,
+            )
+            | (
+                GameState::WaitingForEnableBuzzer {
+                    board,
                     location,
                     controller,
                 },
@@ -814,26 +865,30 @@ impl Game {
             .ok_or(Error::TooManyDailyDoubles)?;
         let new_controller = self.get_random_player_with_lowest_score();
 
-        let new_state = match &self.state {
+        match self.state {
             GameState::NoBoard => {
                 let controller = self.get_random_player_with_lowest_score();
-                GameState::WaitingForSquareSelection { board, controller }
+                self.state = GameState::WaitingForSquareSelection { board, controller }
             }
 
-            GameState::WaitingForSquareSelection { .. } => GameState::WaitingForSquareSelection {
-                board,
-                controller: new_controller,
-            },
+            GameState::WaitingForSquareSelection { .. } => {
+                self.state = GameState::WaitingForSquareSelection {
+                    board,
+                    controller: new_controller,
+                };
+            }
 
             GameState::WaitingForAnswer { .. }
             | GameState::WaitingForDailyDoubleWager { .. }
-            | GameState::WaitingForBuzzer { .. } => GameState::WaitingForSquareSelection {
-                board,
-                controller: new_controller,
-            },
+            | GameState::WaitingForEnableBuzzer { .. }
+            | GameState::WaitingForBuzzer { .. } => {
+                self.state = GameState::WaitingForSquareSelection {
+                    board,
+                    controller: new_controller,
+                };
+            }
         };
 
-        self.state = new_state;
         Ok(())
     }
 
@@ -910,7 +965,7 @@ impl Game {
                         controller: controller.clone(),
                     }
                 } else {
-                    GameState::WaitingForBuzzer {
+                    GameState::WaitingForEnableBuzzer {
                         board: new_board,
                         location: *location,
                         controller: controller.clone(),
@@ -921,6 +976,29 @@ impl Game {
             _ => return Err(Error::InvalidStateForOperation),
         };
         self.state = new_state;
+        Ok(())
+    }
+
+    pub(crate) fn enable_buzzer(&mut self) -> Result<(), Error> {
+        match &mut self.state {
+            GameState::WaitingForEnableBuzzer {
+                board,
+                controller,
+                location,
+            } => {
+                // Move to new state
+                let mut new_board = Box::new(DUMMY_BOARD);
+                std::mem::swap(&mut new_board, board);
+                self.state = GameState::WaitingForBuzzer {
+                    board: new_board,
+                    location: *location,
+                    controller: controller.clone(),
+                };
+            }
+
+            _ => return Err(Error::InvalidStateForOperation),
+        };
+
         Ok(())
     }
 

@@ -52,6 +52,7 @@ interface ControlsProps {
     isBoardLoaded: boolean,
     newBoardClicked: (seed: string | null, dailyDoubles: number, multiplier: number) => void,
     evalButtonClicked: (type: ServerData.AnswerType) => void,
+    enableBuzzerClicked: () => void,
     buzzerClicked: () => void,
 }
 interface ModeratorControlsState {
@@ -195,15 +196,27 @@ export class ModeratorControls
     }
 
     handleEvalCorrectClicked() {
-        this.props.evalButtonClicked(ServerData.AnswerType.Correct);
+        if (this.props.activity === Activity.EnableBuzzer) {
+            this.props.enableBuzzerClicked();
+        } else {
+            this.props.evalButtonClicked(ServerData.AnswerType.Correct);
+        }
     }
 
     handleEvalIncorrectClicked() {
-        this.props.evalButtonClicked(ServerData.AnswerType.Incorrect);
+        if (this.props.activity === Activity.EnableBuzzer) {
+            this.props.enableBuzzerClicked();
+        } else {
+            this.props.evalButtonClicked(ServerData.AnswerType.Incorrect);
+        }
     }
 
     handleEvalSkipClicked() {
-        this.props.evalButtonClicked(ServerData.AnswerType.Skip);
+        if (this.props.activity === Activity.EnableBuzzer) {
+            this.props.enableBuzzerClicked();
+        } else {
+            this.props.evalButtonClicked(ServerData.AnswerType.Skip);
+        }
     }
 
     startTimer() {
@@ -221,6 +234,17 @@ export class ModeratorControls
 
     render() {
         let activityString;
+
+        let correctString = 'Correct';
+        let correctClass = 'eval-button-correct';
+        let correctEnabled = false;
+        let incorrectString = 'Incorrect';
+        let incorrectClass = 'eval-button-incorrect';
+        let incorrectEnabled = false;
+        let skipString = 'Skip';
+        let skipClass = 'eval-button-skip';
+        let skipEnabled = false;
+
         switch (this.props.activity) {
             case Activity.Moderate: {
                 if (this.props.controllingPlayer === null) {
@@ -234,19 +258,39 @@ export class ModeratorControls
                 break;
             }
 
+            case Activity.EnableBuzzer: {
+                correctString = 'Enable Buzzer';
+                incorrectString = 'Enable Buzzer';
+                skipString = 'Enable Buzzer';
+                correctClass = 'eval-button-enable-buzzer';
+                incorrectClass = 'eval-button-enable-buzzer';
+                skipClass = 'eval-button-enable-buzzer';
+                correctEnabled = true;
+                incorrectEnabled = true;
+                skipEnabled = true;
+
+                activityString = 'Read the question, then enable the buzzer.';
+                break;
+            }
+
             case Activity.WaitForBuzz: {
                 activityString = 'Wait for a player to buzz, or skip the question.';
+                skipEnabled = true;
                 break;
             }
 
             case Activity.WaitForDailyDoubleWager: {
                 activityString = 'Wait for a player to enter their daily double wager.';
+                skipEnabled = true;
                 break;
             }
 
             case Activity.EvaluateAnswer: {
                 activityString = 'Wait for the active player to give an answer, then click ' +
                     'correct or incorrect.';
+                correctEnabled = true;
+                incorrectEnabled = true;
+                skipEnabled = true;
                 break;
             }
         }
@@ -257,9 +301,9 @@ export class ModeratorControls
                 <div className="moderator-controls-column">
                     <button
                         onClick={this.handleEvalCorrectClicked}
-                        disabled={this.props.activity !== Activity.EvaluateAnswer}
-                        className="eval-button-correct">
-                        Correct
+                        disabled={!correctEnabled}
+                        className={correctClass}>
+                        {correctString}
                     </button>
                     <div className="current-stats-group">
                         <p>{activityString}</p>
@@ -269,9 +313,9 @@ export class ModeratorControls
                 <div className="moderator-controls-column">
                     <button
                         onClick={this.handleEvalIncorrectClicked}
-                        disabled={this.props.activity !== Activity.EvaluateAnswer}
-                        className="eval-button-incorrect">
-                        Inorrect
+                        disabled={!incorrectEnabled}
+                        className={incorrectClass}>
+                        {incorrectString}
                     </button>
                     <div className="current-stats-group">
                         <p>Control: <span className="player-name">{this.props.controllingPlayer}</span></p>
@@ -281,11 +325,9 @@ export class ModeratorControls
                 <div className="moderator-controls-column">
                     <button
                         onClick={this.handleEvalSkipClicked}
-                        disabled={this.props.activity !== Activity.EvaluateAnswer &&
-                            this.props.activity !== Activity.WaitForBuzz &&
-                            this.props.activity !== Activity.WaitForDailyDoubleWager}
-                        className="eval-button-skip">
-                        Skip
+                        disabled={!skipEnabled}
+                        className={skipClass}>
+                        {skipString}
                     </button>
                     <div className="current-stats-group">
                         <button onClick={this.handleOpenNewGameModal} className="new-board-button">

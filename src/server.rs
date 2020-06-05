@@ -6,7 +6,8 @@ use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
 use crate::{
     errors::Error,
     game::{AnswerType, Location, Player, PlayerType, SquareState},
-    AuthToken, GameId, Message, PlayerId, Seed, AVATAR_MANAGER, GAME_LOBBY_CHANNEL, MSG_QUEUE,
+    seed::Seed,
+    AuthToken, GameId, Message, PlayerId, AVATAR_MANAGER, GAME_LOBBY_CHANNEL, MSG_QUEUE,
     OPERATION_TIMEOUT, STATE,
 };
 
@@ -452,6 +453,41 @@ pub async fn change_player_score(
             Some(PlayerType::Moderator)
         ) {
             game.set_player_score(&target, new_score)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: enable the buzzer after selecting a square
+pub async fn enable_buzzer(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("enable_buzzer");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.enable_buzzer()?;
         } else {
             return Err(Error::NotAllowed.into());
         }
