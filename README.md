@@ -3,7 +3,11 @@
 Serve the content in static/ through a web server of your choice. `python -m http.server`
 works for testing and nginx is a good possibility for deployment.
 
-Run a WAMP router on localhost. crossbar is one good option; you can start it with `crossbar start`.
+Run a WAMP router on the same device that the game server is running on. crossbar is one good option; you can start it with `crossbar start`.
+
+You'll also need to create (and serve) a file in static/ named `config.json`. That file should be a JSON dictionary with the following keys:
+
+ - routerUrl: A string containing the URL that clients will attempt to connect to in order to open a connection to the game server. For development, this is likely something like `ws://127.0.0.1:8080/ws` if your Crossbar router is serving on port 8080.
 
 To run the game server, set the following environment variables:
 
