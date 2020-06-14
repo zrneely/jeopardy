@@ -2,11 +2,13 @@ use std::{collections::HashMap, convert::TryInto};
 
 use chrono::{DateTime, Utc};
 use log::*;
-use rand::{seq::SliceRandom, Rng, SeedableRng};
+use rand::{seq::SliceRandom, Rng};
 use uuid::Uuid;
 use wamp_async::{Arg, WampDict};
 
-use crate::{errors::Error, seed::Seed, AuthToken, PlayerId, CATEGORIES};
+use crate::{
+    data::FinalJeopardyQuestion, errors::Error, seed::Seed, AuthToken, PlayerId, JEOPARDY_DATA,
+};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
 const MIN_MAX_DAILY_DOUBLE_WAGER_FACTOR: i64 = 50;
@@ -76,6 +78,15 @@ impl Player {
     }
 }
 
+// Final Jeopardy state for one player
+#[derive(Debug, Default)]
+struct FinalJeopardyInfo {
+    wager: i64, // defaults to 0
+    answer: Option<String>,
+    wager_revealed: bool,
+    answer_revealed: bool,
+}
+
 #[derive(Debug)]
 enum GameState {
     NoBoard,
@@ -105,6 +116,13 @@ enum GameState {
         controller: PlayerId,    // ID of whoever's controlling the board
         active_player: PlayerId, // ID of whoever won the buzzer race or is doing the daily double
         value: i64,              // Value added to score if correct, or subtracted if wrong
+    },
+    FinalJeopardy {
+        category_name: String,
+        question: Clue,
+        question_revealed: bool,
+        answers_locked: bool,
+        player_info: HashMap<PlayerId, FinalJeopardyInfo>,
     },
 }
 impl GameState {
@@ -225,6 +243,51 @@ impl GameState {
                     "active_player".into(),
                     Arg::String(active_player.to_string()),
                 );
+            }
+
+            GameState::FinalJeopardy {
+                category_name,
+                question,
+                question_revealed,
+                answers_locked,
+                player_info,
+            } => {
+                result.insert("type".into(), Arg::String("FinalJeopardy".into()));
+                result.insert("category".into(), Arg::String(category_name.clone()));
+                result.insert("answers_locked".into(), Arg::Bool(*answers_locked));
+
+                if *question_revealed || for_moderator {
+                    result.insert("question".into(), Arg::Dict(question.serialize()));
+                }
+
+                result.insert("player_info".into(), Arg::Dict({
+                    let mut inner_result = HashMap::new();
+
+                    for (player_id, FinalJeopardyInfo {
+                        wager, wager_revealed,
+                        answer, answer_revealed,
+                    }) in player_info {
+                        let mut player_result = HashMap::new();
+                        if *wager_revealed || for_moderator {
+                            player_result.insert("wager".into(), Arg::String(wager.to_string()));
+                        }
+
+                        if *answer_revealed || for_moderator {
+                            match answer {
+                                Some(ref answer) => {
+                                    player_result.insert("answer".into(), Arg::String(answer.clone()));
+                                }
+                                None => {
+                                    player_result.insert("answer".into(), Arg::None);
+                                }
+                            }
+                        }
+
+                        inner_result.insert(player_id.to_string(), Arg::Dict(player_result));
+                    }
+
+                    inner_result
+                }));
             }
         }
 
@@ -358,8 +421,8 @@ impl Game {
         // Will be none if there are no longer any players
         let new_player = self.players.keys().next();
 
-        let new_state = match (&mut self.state, new_player) {
-            (GameState::NoBoard, _) => GameState::NoBoard,
+        match (&mut self.state, new_player) {
+            (GameState::NoBoard, _) => {}
 
             // If we're waiting for square selection, then it's valid to have a
             // controlling player, or not to. The new controller is either an
@@ -375,7 +438,7 @@ impl Game {
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
 
-                GameState::WaitingForSquareSelection {
+                self.state = GameState::WaitingForSquareSelection {
                     controller: if controller
                         .as_ref()
                         .map(|c| *c == player_id)
@@ -386,7 +449,7 @@ impl Game {
                         controller.clone()
                     },
                     board: new_board,
-                }
+                };
             }
 
             // If we're waiting for the buzzer and there's another player
@@ -402,7 +465,7 @@ impl Game {
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
 
-                GameState::WaitingForBuzzer {
+                self.state = GameState::WaitingForBuzzer {
                     controller: if *controller == player_id {
                         new_player.clone()
                     } else {
@@ -410,7 +473,7 @@ impl Game {
                     },
                     board: new_board,
                     location: *location,
-                }
+                };
             }
 
             // If we're waiting to enable the buzzer and there's another player who
@@ -426,7 +489,7 @@ impl Game {
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
 
-                GameState::WaitingForEnableBuzzer {
+                self.state = GameState::WaitingForEnableBuzzer {
                     controller: if *controller == player_id {
                         new_player.clone()
                     } else {
@@ -434,7 +497,7 @@ impl Game {
                     },
                     board: new_board,
                     location: *location,
-                }
+                };
             }
 
             // If we're waiting for the buzzer (or to enable the buzzer) and there's
@@ -464,16 +527,16 @@ impl Game {
                         .get_square_mut(location)
                         .set_flip_state(SquareState::Finished);
 
-                    GameState::WaitingForSquareSelection {
+                    self.state = GameState::WaitingForSquareSelection {
                         controller: None,
                         board: new_board,
-                    }
+                    };
                 } else {
-                    GameState::WaitingForBuzzer {
+                    self.state = GameState::WaitingForBuzzer {
                         board: new_board,
                         location: *location,
                         controller: controller.clone(),
-                    }
+                    };
                 }
             }
 
@@ -503,23 +566,23 @@ impl Game {
                         .get_square_mut(location)
                         .set_flip_state(SquareState::Finished);
 
-                    GameState::WaitingForSquareSelection {
+                    self.state = GameState::WaitingForSquareSelection {
                         controller: new_controller,
                         board: new_board,
-                    }
+                    };
                 } else {
                     // If there's now no players left, it must be the case that
                     // the active player, controller, and removal target are all
                     // the same player. Therefore, if we get here, there must have
                     // been multiple players prior to the remove call, and there
                     // will be a new controller.
-                    GameState::WaitingForAnswer {
+                    self.state = GameState::WaitingForAnswer {
                         board: new_board,
                         location: *location,
                         controller: new_controller.expect("no new controller"),
                         active_player: active_player.clone(),
                         value: *value,
-                    }
+                    };
                 }
             }
 
@@ -541,21 +604,32 @@ impl Game {
                         .get_square_mut(location)
                         .set_flip_state(SquareState::Finished);
 
-                    GameState::WaitingForSquareSelection {
+                    self.state = GameState::WaitingForSquareSelection {
                         board: new_board,
                         controller: new_player.cloned(),
-                    }
+                    };
                 } else {
-                    GameState::WaitingForDailyDoubleWager {
+                    self.state = GameState::WaitingForDailyDoubleWager {
                         board: new_board,
                         location: *location,
                         controller: controller.clone(),
-                    }
+                    };
                 }
+            }
+
+            // If we're in final jeopardy, just remove them from the player_info if they've already
+            // submitted their wager.
+            (
+                GameState::FinalJeopardy {
+                    ref mut player_info,
+                    ..
+                },
+                _,
+            ) => {
+                player_info.remove(&player_id);
             }
         };
 
-        self.state = new_state;
         true
     }
 
@@ -580,8 +654,10 @@ impl Game {
 
         match self.state {
             GameState::NoBoard => {
-                let controller = self.get_random_player_with_lowest_score();
-                self.state = GameState::WaitingForSquareSelection { board, controller }
+                self.state = GameState::WaitingForSquareSelection {
+                    board,
+                    controller: new_controller,
+                }
             }
 
             GameState::WaitingForSquareSelection { .. } => {
@@ -594,12 +670,26 @@ impl Game {
             GameState::WaitingForAnswer { .. }
             | GameState::WaitingForDailyDoubleWager { .. }
             | GameState::WaitingForEnableBuzzer { .. }
-            | GameState::WaitingForBuzzer { .. } => {
+            | GameState::WaitingForBuzzer { .. }
+            | GameState::FinalJeopardy { .. } => {
                 self.state = GameState::WaitingForSquareSelection {
                     board,
                     controller: new_controller,
                 };
             }
+        };
+
+        Ok(())
+    }
+
+    pub(crate) fn start_final_jeopardy(&mut self, seed: Seed) -> Result<(), Error> {
+        let question = self.get_random_final_jeopardy(&mut seed.to_rng());
+        self.state = GameState::FinalJeopardy {
+            category_name: question.category.clone(),
+            question: question.clue,
+            question_revealed: false,
+            answers_locked: false,
+            player_info: HashMap::with_capacity(self.players.len()),
         };
 
         Ok(())
@@ -633,7 +723,7 @@ impl Game {
         id: usize,
         seed: Seed,
     ) -> Option<Box<JeopardyBoard>> {
-        let mut rng = rand_chacha::ChaCha20Rng::from_seed(seed.to_seed());
+        let mut rng = seed.to_rng();
 
         let categories = (0..category_count)
             .map(|_| self.get_random_category(&mut rng))
@@ -651,7 +741,23 @@ impl Game {
     }
 
     fn get_random_category<R: Rng>(&self, rng: &mut R) -> Category {
-        CATEGORIES.get().unwrap().choose(rng).unwrap().clone()
+        JEOPARDY_DATA
+            .get()
+            .unwrap()
+            .categories
+            .choose(rng)
+            .unwrap()
+            .clone()
+    }
+
+    fn get_random_final_jeopardy<R: Rng>(&self, rng: &mut R) -> FinalJeopardyQuestion {
+        JEOPARDY_DATA
+            .get()
+            .unwrap()
+            .final_jeopardy_questions
+            .choose(rng)
+            .unwrap()
+            .clone()
     }
 
     pub(crate) fn select_square(&mut self, location: &Location) -> Result<(), Error> {
@@ -709,13 +815,13 @@ impl Game {
         Ok(())
     }
 
-    pub(crate) fn submit_wager(&mut self, wager: i64) -> Result<(), Error> {
-        let new_state = match &mut self.state {
+    pub(crate) fn submit_wager(&mut self, caller_id: &PlayerId, wager: i64) -> Result<(), Error> {
+        match &mut self.state {
             GameState::WaitingForDailyDoubleWager {
                 ref mut board,
                 controller,
                 location,
-            } => {
+            } if *controller == *caller_id => {
                 // Move to new state
                 if wager < MIN_DAILY_DOUBLE_WAGER {
                     return Err(Error::DailyDoubleWagerOutOfRange);
@@ -734,18 +840,56 @@ impl Game {
 
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
-                GameState::WaitingForAnswer {
+                self.state = GameState::WaitingForAnswer {
                     board: new_board,
                     location: *location,
                     active_player: controller.clone(),
                     controller: controller.clone(),
                     value: wager,
-                }
+                };
+            }
+
+            GameState::FinalJeopardy {
+                ref mut player_info,
+                question_revealed: false,
+                ..
+            } => {
+                player_info.insert(
+                    caller_id.clone(),
+                    FinalJeopardyInfo {
+                        answer: None,
+                        answer_revealed: false,
+                        wager,
+                        wager_revealed: false,
+                    },
+                );
             }
 
             _ => return Err(Error::InvalidStateForOperation),
         };
-        self.state = new_state;
+
+        Ok(())
+    }
+
+    pub(crate) fn submit_final_jeopardy_answer(
+        &mut self,
+        id: &PlayerId,
+        answer: &str,
+    ) -> Result<(), Error> {
+        match &mut self.state {
+            GameState::FinalJeopardy {
+                ref mut player_info,
+                ..
+            } => {
+                player_info
+                    .entry(id.clone())
+                    .or_insert_with(FinalJeopardyInfo::default)
+                    .answer = Some(answer.to_string());
+            }
+
+            _ => return Err(Error::InvalidStateForOperation),
+        }
+
         Ok(())
     }
 

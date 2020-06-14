@@ -29,7 +29,7 @@ lazy_static::lazy_static! {
 
     static ref MSG_QUEUE: OnceCell<mpsc::UnboundedSender<Message>> = OnceCell::new();
 
-    static ref CATEGORIES: OnceCell<Vec<game::board::Category>> = OnceCell::new();
+    static ref JEOPARDY_DATA: OnceCell<data::JeopardyData> = OnceCell::new();
 
     static ref AVATAR_DIRECTORY: PathBuf = {
         let mut buf = PathBuf::new();
@@ -220,14 +220,15 @@ impl JeopardyState {
 async fn main() {
     env_logger::init();
 
-    let mut categories = Vec::new();
-    let time_taken = chrono::Duration::span(|| categories = data::load(DATABASE_PATH).unwrap());
+    let mut jeopardy_data = Default::default();
+    let time_taken = chrono::Duration::span(|| jeopardy_data = data::load(DATABASE_PATH).unwrap());
     info!(
-        "Loaded {} categories in {} ms",
-        categories.len(),
+        "Loaded {} categories and {} final jeopardy questions in {} ms",
+        jeopardy_data.categories.len(),
+        jeopardy_data.final_jeopardy_questions.len(),
         time_taken.num_milliseconds()
     );
-    CATEGORIES.set(categories).unwrap();
+    JEOPARDY_DATA.set(jeopardy_data).unwrap();
 
     // Create our MPSC pair
     let (sender, mut receiver) = mpsc::unbounded_channel();
@@ -312,13 +313,14 @@ async fn main() {
         "jpdy.select_square" => server::select_square,
         "jpdy.enable_buzzer" => server::enable_buzzer,
         "jpdy.answer" => server::answer,
+        "jpdy.start_final_jeopardy" => server::start_final_jeopardy,
         "jpdy.change_square_state" => server::change_square_state,
         "jpdy.change_player_score" => server::change_player_score,
 
         // Player-only functions
         "jpdy.submit_wager" => server::submit_wager,
         "jpdy.buzz" => server::buzz,
-
+        "jpdy.submit_final_jeopardy_answer" => server::submit_final_jeopardy_answer,
     })
     .await
     .into_iter()

@@ -51,22 +51,37 @@ enum RowType {
     FinalJeopardy,
 }
 
-pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
+#[derive(Debug, Clone)]
+pub struct FinalJeopardyQuestion {
+    pub category: String,
+    pub clue: Clue,
+    pub answer: String,
+    pub air_year: String,
+}
+
+#[derive(Debug, Default)]
+pub struct JeopardyData {
+    pub categories: Vec<Category>,
+    pub final_jeopardy_questions: Vec<FinalJeopardyQuestion>,
+}
+
+pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
     let mut reader = csv::Reader::from_path(path)?;
     let results = reader.deserialize::<Row>();
 
-    let mut categories = Vec::new();
+    let mut jeopardy_data = JeopardyData {
+        categories: Vec::new(),
+        final_jeopardy_questions: Vec::new(),
+    };
 
     let mut occurrences = [0usize; 5];
 
-    for (_key, group) in results
+    let (final_jeopardy, normal): (Vec<Row>, Vec<Row>) = results
         .filter_map(|row| row.ok())
-        .filter(|row| !matches!(row.r#type, RowType::FinalJeopardy))
-        // .filter(|row| !row.category_comm.is_empty())
-        .group_by(|row| row.cat_id.clone())
-        .into_iter()
-    {
-        let group: Vec<Row> = group.collect();
+        .partition(|row| matches!(row.r#type, RowType::FinalJeopardy));
+
+    for (_key, group) in normal.iter().group_by(|row| row.cat_id.clone()).into_iter() {
+        let group: Vec<&Row> = group.collect();
         assert!(group.len() == 5);
 
         for i in 0..5 {
@@ -75,7 +90,7 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
             }
         }
 
-        categories.push(Category {
+        jeopardy_data.categories.push(Category {
             title: group[0].category.clone(),
             air_year: group[0].air_year.clone(),
             commentary: if group[0].category_comm.is_empty() {
@@ -93,7 +108,20 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<Vec<Category>, std::io::Error> {
         });
     }
 
+    for row in final_jeopardy {
+        let Square { clue, answer, .. } = row.to_square();
+
+        jeopardy_data
+            .final_jeopardy_questions
+            .push(FinalJeopardyQuestion {
+                category: row.category,
+                air_year: row.air_year,
+                answer,
+                clue,
+            });
+    }
+
     log::info!("Occurrences of Daily Doubles: {:?}", occurrences);
 
-    Ok(categories)
+    Ok(jeopardy_data)
 }

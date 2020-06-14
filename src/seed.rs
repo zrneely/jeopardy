@@ -20,11 +20,16 @@ impl Seed {
         }
     }
 
-    pub fn to_seed(&self) -> [u8; 32] {
+    fn to_seed(&self) -> [u8; 32] {
         let bytes = self.value.to_le_bytes();
         let mut result = [0xFD; 32];
         result[0..4].copy_from_slice(&bytes);
         result
+    }
+
+    pub fn to_rng(&self) -> impl rand::Rng {
+        use rand::SeedableRng;
+        rand_chacha::ChaCha20Rng::from_seed(self.to_seed())
     }
 }
 impl fmt::Display for Seed {

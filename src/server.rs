@@ -381,6 +381,46 @@ pub async fn new_board(
     Ok((None, None))
 }
 
+/// Moderator only: change to a fresh board
+pub async fn start_final_jeopardy(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("start_final_jeopardy");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
+        arg.parse().unwrap_or_else(|_| Seed::new_random())
+    } else {
+        Seed::new_random()
+    };
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.start_final_jeopardy(seed)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
 /// Moderator only: change a square's state
 pub async fn change_square_state(
     _: WampArgs,
@@ -537,7 +577,7 @@ pub async fn submit_wager(
     _: WampArgs,
     kwargs: WampKwArgs,
 ) -> Result<(WampArgs, WampKwArgs), WampError> {
-    info!("buzz");
+    info!("submit_wager");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let wager: i64 = get_str_parse(kwargs.get("wager").ok_or(Error::BadArgument)?)?;
@@ -558,7 +598,42 @@ pub async fn submit_wager(
             game.auth_and_get_player_type(&player_id, &auth),
             Some(PlayerType::Player)
         ) {
-            game.submit_wager(wager)?;
+            game.submit_wager(&player_id, wager)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+pub async fn submit_final_jeopardy_answer(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("submit_final_jeopardy_answer");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    let answer: &str = get_str(kwargs.get("answer").ok_or(Error::BadArgument)?)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Player)
+        ) {
+            game.submit_final_jeopardy_answer(&player_id, answer)?;
         } else {
             return Err(Error::NotAllowed.into());
         }

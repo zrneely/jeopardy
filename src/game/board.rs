@@ -287,7 +287,7 @@ pub struct Clue {
     pub link: Option<String>,
 }
 impl Clue {
-    fn serialize(&self) -> WampDict {
+    pub fn serialize(&self) -> WampDict {
         let mut result = WampDict::new();
         if let Some(ref text) = self.text {
             result.insert("text".into(), Arg::String(text.into()));
