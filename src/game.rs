@@ -9,7 +9,7 @@ use wamp_async::{Arg, WampDict};
 use crate::{errors::Error, seed::Seed, AuthToken, PlayerId, CATEGORIES};
 
 const MIN_DAILY_DOUBLE_WAGER: i64 = 5;
-const MIN_MAX_DAILY_DOUBLE_WAGER: i64 = 1000;
+const MIN_MAX_DAILY_DOUBLE_WAGER_FACTOR: i64 = 50;
 const CATEGORY_HEIGHT: usize = 5;
 
 const DUMMY_BOARD: JeopardyBoard = JeopardyBoard {
@@ -1019,7 +1019,8 @@ impl Game {
                     .get(&controller)
                     .ok_or(Error::NoSuchPlayer)?
                     .score;
-                let max_bid = MIN_MAX_DAILY_DOUBLE_WAGER.max(cur_score.try_into().unwrap());
+                let max_default_bid = MIN_MAX_DAILY_DOUBLE_WAGER_FACTOR * board.value_multiplier;
+                let max_bid = max_default_bid.max(cur_score.try_into().unwrap());
                 if wager > max_bid {
                     return Err(Error::DailyDoubleWagerOutOfRange);
                 }

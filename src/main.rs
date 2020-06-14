@@ -52,7 +52,7 @@ const ROUTER_PORT_ENV_NAME: &str = "JPDY_ROUTER_PORT";
 const WAMP_REALM: &str = "jpdy";
 const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
 const DATABASE_PATH: &str = "jeo_data_utf8.csv";
-const MAX_AVATAR_SIZE: usize = 16 * 1024;
+const MAX_AVATAR_SIZE: usize = 32 * 1024;
 
 /// A game's ID.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

@@ -45,7 +45,7 @@ impl AvatarManager {
                 bytes.extend_from_slice(data);
                 Ok(())
             } else {
-                log::warn!("Avatar too big!");
+                log::warn!("Avatar too big: {}!", bytes.len() + data.len());
                 Err(Error::AvatarTooBig)
             }
         })?;
