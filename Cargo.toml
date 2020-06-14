@@ -22,8 +22,7 @@ sha2 = "0.8"
 serde = "1"
 tokio = { version = "0.2", features = ["rt-core", "rt-threaded", "net", "sync", "time", "fs"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
-#wamp_async = { git = "https://gitlab.com/elast0ny/wamp_async-rs.git" }
-wamp_async = { path = "wamp_async-rs" }
+wamp_async = { git = "https://github.com/zrneely/wamp_async", branch="zach_fixes" }
 
 [profile.release]
 lto = true

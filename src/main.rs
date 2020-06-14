@@ -239,22 +239,19 @@ async fn main() {
         .expect("Router port not integer");
 
     info!("Connecting to WAMP server on port {}", port);
-    let mut client = wamp_async::Client::connect(
+    let (mut client, (event_loop, rpc_queue)) = wamp_async::Client::connect(
         format!("ws://127.0.0.1:{}/ws", port),
         Some(
-            wamp_async::ClientConfig::new().set_serializers(vec![wamp_async::SerializerType::Json]),
+            wamp_async::ClientConfig::default()
+                .set_serializers(vec![wamp_async::SerializerType::Json]),
         ),
     )
     .await
     .expect("Failed to connect to router!");
     trace!("Connected!");
 
-    let (evt_loop, rpc_queue) = client
-        .event_loop()
-        .expect("Failed to start WAMP event loop!");
-
     // Spawn the WAMP event loop (which enables processing messages out-of-order).
-    tokio::spawn(evt_loop);
+    tokio::spawn(event_loop);
 
     // Spawn each new RPC call on its own task.
     tokio::spawn(async move {

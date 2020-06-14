@@ -1245,7 +1245,8 @@ checksum = "3fc439f2794e98976c88a2a2dafce96b930fe8010b0a256b3c2199a773933168"
 
 [[package]]
 name = "wamp_async"
-version = "0.0.1"
+version = "0.1.1"
+source = "git+https://github.com/zrneely/wamp_async?branch=zach_fixes#9732321d2bd7ad2ad324a1c554f4e311a72d5017"
 dependencies = [
  "async-trait",
  "env_logger",
