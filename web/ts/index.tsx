@@ -15,16 +15,18 @@ const WAMP_REALM = "jpdy";
 const LS_KEY_CUR_GAME = "curGame";
 
 interface JeopardyProps {
-  routerUrl: string,
+  routerUrlPromise: Promise<string>,
 }
 
 interface JeopardyState {
+  routerUrl: string | null,
   session: autobahn.Session | null,
   currentJoinInfo: GameJoinInfo | null,
 }
 
 class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   state: JeopardyState = {
+    routerUrl: null,
     session: null,
     currentJoinInfo: null,
   };
@@ -47,22 +49,28 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       });
     }
 
-    this.connection = new autobahn.Connection({
-      url: this.props.routerUrl,
-      realm: WAMP_REALM,
-      max_retries: 3,
-      max_retry_delay: 15, // seconds
-    });
-
-    this.connection.onopen = (session) => {
-      console.log('WAMP connection open!');
-
+    this.props.routerUrlPromise.then((routerUrl) => {
       this.setState({
-        session: session,
+        routerUrl,
       });
-    }
 
-    this.connection.open();
+      this.connection = new autobahn.Connection({
+        url: routerUrl,
+        realm: WAMP_REALM,
+        max_retries: 3,
+        max_retry_delay: 15, // seconds
+      });
+
+      this.connection.onopen = (session) => {
+        console.log('WAMP connection open!');
+
+        this.setState({
+          session: session,
+        });
+      }
+
+      this.connection.open();
+    });
   }
 
   componentWillUnmount() {
@@ -158,7 +166,10 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   }
 }
 
+const routerUrlPromise: Promise<string> = fetch('config.json')
+  .then(resp => resp.json())
+  .then(data => data['routerUrl']);
 ReactDOM.render(
-  <Jeopardy routerUrl="ws://127.0.0.1:8080/ws" />,
+  <Jeopardy routerUrlPromise={routerUrlPromise} />,
   document.querySelector('#root')
 );
