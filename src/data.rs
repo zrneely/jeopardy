@@ -3,7 +3,7 @@ use std::path::Path;
 use itertools::Itertools;
 use serde::Deserialize;
 
-use crate::game::{Category, Clue, Square};
+use crate::game::board::{Category, Clue, Square};
 
 #[derive(Debug, Deserialize)]
 struct Row {

@@ -5,7 +5,10 @@ use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
 
 use crate::{
     errors::Error,
-    game::{AnswerType, Location, Player, PlayerType, SquareState},
+    game::{
+        board::{Location, SquareState},
+        AnswerType, Player, PlayerType,
+    },
     seed::Seed,
     AuthToken, GameId, Message, PlayerId, AVATAR_MANAGER, GAME_LOBBY_CHANNEL, MSG_QUEUE,
     OPERATION_TIMEOUT, STATE,

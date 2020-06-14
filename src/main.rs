@@ -29,7 +29,7 @@ lazy_static::lazy_static! {
 
     static ref MSG_QUEUE: OnceCell<mpsc::UnboundedSender<Message>> = OnceCell::new();
 
-    static ref CATEGORIES: OnceCell<Vec<game::Category>> = OnceCell::new();
+    static ref CATEGORIES: OnceCell<Vec<game::board::Category>> = OnceCell::new();
 
     static ref AVATAR_DIRECTORY: PathBuf = {
         let mut buf = PathBuf::new();
