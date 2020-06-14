@@ -10,30 +10,36 @@ div.player-controls {
     align-items: stretch;
 }
 
-.buzz-button {
+@mixin buzz-button {
     @include common.default-button;
-
     flex: 4;
-
     margin: 10px;
     color: white;
-
     display: flex;
     justify-content: center;
     align-items: center;
+}
 
-    &:not(:disabled) {
-        background-color: darkred;
-        border: 2px solid darkred;
-    }
+.buzz-button-enabled {
+    @include buzz-button;
 
-    &:disabled {
-        border: 2px solid black;
-    }
+    background-color: darkred;
+    border: 2px solid darkred;
+    cursor: pointer;
 
-    &:hover:not(:disabled) {
+    &:hover {
         background-color: pink;
         color: black;
-        cursor: pointer;
     }
+}
+
+.buzz-button-disabled {
+    @include buzz-button;
+
+    border: 2px solid black;
+    background-color: gray;
+}
+
+.buzz-button-throttled {
+    cursor: not-allowed !important;
 }

@@ -17,6 +17,7 @@ const TIMER_STATES = [
 ];
 const TIMER_DELAY = 1000;
 const TIMER_STEPS = 5;
+const BUZZER_THROTTLE_TIME = 500;
 
 interface TimerProps {
     timeRemaining: number,
@@ -419,6 +420,7 @@ export class ModeratorControls
 
 interface PlayerControlsState {
     timerTimeRemaining: number,
+    buzzerThrottled: boolean,
 }
 export class PlayerControls
     extends React.Component<ControlsProps, PlayerControlsState>
@@ -426,6 +428,7 @@ export class PlayerControls
 
     state: PlayerControlsState = {
         timerTimeRemaining: 0,
+        buzzerThrottled: false,
     };
 
     constructor(props: ControlsProps) {
@@ -449,9 +452,24 @@ export class PlayerControls
     }
 
     handleBuzzClicked() {
-        if (this.state.timerTimeRemaining === 0) {
+        if (this.state.buzzerThrottled) {
+            return;
+        }
+
+        // If we're allowed to buzz, do so.
+        if ((this.state.timerTimeRemaining === 0) && (this.props.activity === Activity.Buzz)) {
             this.startTimer();
             this.props.buzzerClicked();
+        } else {
+            // Otherwise, disable the buzzer for the throttle time.
+            this.setState({
+                buzzerThrottled: true,
+            });
+            setTimeout(() => {
+                this.setState({
+                    buzzerThrottled: false,
+                });
+            }, BUZZER_THROTTLE_TIME);
         }
     }
 
@@ -469,12 +487,21 @@ export class PlayerControls
     }
 
     render() {
+        let className = [];
+        if (this.state.buzzerThrottled) {
+            className.push('buzz-button-throttled');
+        }
+        if (this.props.activity !== Activity.Buzz) {
+            className.push('buzz-button-disabled');
+        } else {
+            className.push('buzz-button-enabled');
+        }
+
         return <div className="player-controls">
             <Timer timeRemaining={this.state.timerTimeRemaining} />
             <button
                 onClick={this.handleBuzzClicked}
-                className="buzz-button"
-                disabled={this.props.activity !== Activity.Buzz}>
+                className={className.join(' ')}>
                 BUZZ
             </button>
         </div>;
