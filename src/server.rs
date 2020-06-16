@@ -7,7 +7,7 @@ use crate::{
     errors::Error,
     game::{
         board::{Location, SquareState},
-        AnswerType, Player, PlayerType,
+        AnswerType, FinalJeopardyInfoType, Player, PlayerType,
     },
     seed::Seed,
     AuthToken, GameId, Message, PlayerId, AVATAR_MANAGER, GAME_LOBBY_CHANNEL, MSG_QUEUE,
@@ -209,8 +209,8 @@ pub async fn get_game_state(
         .ok_or(Error::LockTimeout)?;
 
     match game.auth_and_get_player_type(&player_id, &auth) {
-        Some(PlayerType::Moderator) => Ok((None, Some(game.serialize_for_moderator()))),
-        Some(PlayerType::Player) => Ok((None, Some(game.serialize_for_players()))),
+        Some(PlayerType::Moderator) => Ok((None, Some(game.serialize(true)))),
+        Some(PlayerType::Player) => Ok((None, Some(game.serialize(false)))),
         None => Err(Error::NoSuchPlayer.into()),
     }
 }
@@ -381,7 +381,7 @@ pub async fn new_board(
     Ok((None, None))
 }
 
-/// Moderator only: change to a fresh board
+/// Moderator only: start final jeopardy
 pub async fn start_final_jeopardy(
     _: WampArgs,
     kwargs: WampKwArgs,
@@ -412,6 +412,151 @@ pub async fn start_final_jeopardy(
             Some(PlayerType::Moderator)
         ) {
             game.start_final_jeopardy(seed)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: reveal the final jeopardy question
+pub async fn reveal_final_jeopardy_question(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("reveal_final_jeopardy_question");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.reveal_final_jeopardy_question()?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: lock final jeopardy answers
+pub async fn lock_final_jeopardy_answers(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("lock_final_jeopardy_answers");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.lock_final_jeopardy_answers()?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: reveal a player's final jeopardy info
+pub async fn reveal_final_jeopardy_info(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("reveal_final_jeopardy_info");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    let target_id: PlayerId = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
+    let info_type: FinalJeopardyInfoType =
+        get_str_parse(kwargs.get("info_type").ok_or(Error::BadArgument)?)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.reveal_final_jeopardy_info(&target_id, info_type)?;
+        } else {
+            return Err(Error::NotAllowed.into());
+        }
+    }
+
+    STATE.broadcast_game_state_update(&game_id).await?;
+    Ok((None, None))
+}
+
+/// Moderator only: evaluate a player's final jeopardy answer
+pub async fn evaluate_final_jeopardy_answer(
+    _: WampArgs,
+    kwargs: WampKwArgs,
+) -> Result<(WampArgs, WampKwArgs), WampError> {
+    info!("reveal_final_jeopardy_info");
+    let kwargs = kwargs.ok_or(Error::BadArgument)?;
+    let (game_id, player_id, auth) = get_common_args(&kwargs)?;
+    let target_id: PlayerId = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
+    let answer: AnswerType = get_str_parse(kwargs.get("answer").ok_or(Error::BadArgument)?)?;
+
+    {
+        let games = STATE
+            .games
+            .try_read_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        let mut game = games
+            .get(&game_id)
+            .ok_or(Error::UnknownGame)?
+            .try_write_for(OPERATION_TIMEOUT)
+            .ok_or(Error::LockTimeout)?;
+
+        if matches!(
+            game.auth_and_get_player_type(&player_id, &auth),
+            Some(PlayerType::Moderator)
+        ) {
+            game.evaluate_final_jeopardy_answer(&target_id, answer)?;
         } else {
             return Err(Error::NotAllowed.into());
         }

@@ -40,14 +40,22 @@ pub enum PlayerType {
     Player,
 }
 
+// Final Jeopardy state for one player
+#[derive(Debug, Default, Clone)]
+struct FinalJeopardyInfo {
+    wager: Option<i64>,
+    answer: Option<String>,
+    wager_revealed: bool,
+    answer_revealed: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Player {
     name: String,
     score: i64,
     auth: AuthToken,
     avatar_url: String,
-    final_jeopardy_wager: Option<i64>,
-    final_jeopardy_answer: Option<String>,
+    final_jeopardy_info: FinalJeopardyInfo,
 }
 impl Player {
     pub fn new(name: String, avatar_url: String) -> Self {
@@ -56,8 +64,7 @@ impl Player {
             score: 0,
             auth: AuthToken(Uuid::new_v4()),
             avatar_url,
-            final_jeopardy_wager: None,
-            final_jeopardy_answer: None,
+            final_jeopardy_info: Default::default(),
         }
     }
 
@@ -69,22 +76,61 @@ impl Player {
         self.auth == *auth
     }
 
-    fn serialize(&self) -> WampDict {
+    fn serialize(&self, for_moderator: bool) -> WampDict {
         let mut result = WampDict::new();
         result.insert("name".into(), Arg::String(self.name.clone()));
         result.insert("score".into(), Arg::String(self.score.to_string()));
         result.insert("avatar_url".into(), Arg::String(self.avatar_url.clone()));
+
+        result.insert(
+            "final_jeopardy_info".into(),
+            Arg::Dict({
+                let mut player_result = HashMap::new();
+                if self.final_jeopardy_info.wager_revealed || for_moderator {
+                    match self.final_jeopardy_info.wager {
+                        Some(ref wager) => {
+                            player_result.insert("wager".into(), Arg::String(wager.to_string()));
+                        }
+                        None => {
+                            player_result.insert("wager".into(), Arg::None);
+                        }
+                    }
+                }
+
+                if self.final_jeopardy_info.answer_revealed || for_moderator {
+                    match self.final_jeopardy_info.answer {
+                        Some(ref answer) => {
+                            player_result.insert("answer".into(), Arg::String(answer.clone()));
+                        }
+                        None => {
+                            player_result.insert("answer".into(), Arg::None);
+                        }
+                    }
+                }
+
+                player_result
+            }),
+        );
+
         result
     }
 }
 
-// Final Jeopardy state for one player
-#[derive(Debug, Default)]
-struct FinalJeopardyInfo {
-    wager: i64, // defaults to 0
-    answer: Option<String>,
-    wager_revealed: bool,
-    answer_revealed: bool,
+#[derive(Debug)]
+pub enum FinalJeopardyInfoType {
+    Wager,
+    Answer,
+}
+impl std::str::FromStr for FinalJeopardyInfoType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, ()> {
+        Ok(match s {
+            "Wager" => FinalJeopardyInfoType::Wager,
+            "Answer" => FinalJeopardyInfoType::Answer,
+            _ => return Err(()),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -122,7 +168,6 @@ enum GameState {
         question: Clue,
         question_revealed: bool,
         answers_locked: bool,
-        player_info: HashMap<PlayerId, FinalJeopardyInfo>,
     },
 }
 impl GameState {
@@ -250,7 +295,6 @@ impl GameState {
                 question,
                 question_revealed,
                 answers_locked,
-                player_info,
             } => {
                 result.insert("type".into(), Arg::String("FinalJeopardy".into()));
                 result.insert("category".into(), Arg::String(category_name.clone()));
@@ -259,35 +303,6 @@ impl GameState {
                 if *question_revealed || for_moderator {
                     result.insert("question".into(), Arg::Dict(question.serialize()));
                 }
-
-                result.insert("player_info".into(), Arg::Dict({
-                    let mut inner_result = HashMap::new();
-
-                    for (player_id, FinalJeopardyInfo {
-                        wager, wager_revealed,
-                        answer, answer_revealed,
-                    }) in player_info {
-                        let mut player_result = HashMap::new();
-                        if *wager_revealed || for_moderator {
-                            player_result.insert("wager".into(), Arg::String(wager.to_string()));
-                        }
-
-                        if *answer_revealed || for_moderator {
-                            match answer {
-                                Some(ref answer) => {
-                                    player_result.insert("answer".into(), Arg::String(answer.clone()));
-                                }
-                                None => {
-                                    player_result.insert("answer".into(), Arg::None);
-                                }
-                            }
-                        }
-
-                        inner_result.insert(player_id.to_string(), Arg::Dict(player_result));
-                    }
-
-                    inner_result
-                }));
             }
         }
 
@@ -357,7 +372,7 @@ impl Game {
             .collect()
     }
 
-    fn serialize_common(&self) -> WampDict {
+    pub fn serialize(&self, for_moderator: bool) -> WampDict {
         let mut result = WampDict::new();
 
         result.insert("is_ended".into(), Arg::Bool(self.is_ended));
@@ -367,29 +382,20 @@ impl Game {
                 self.players
                     .iter()
                     .map(|(player_id, player)| {
-                        (player_id.to_string(), Arg::Dict(player.serialize()))
+                        (
+                            player_id.to_string(),
+                            Arg::Dict(player.serialize(for_moderator)),
+                        )
                     })
                     .collect(),
             ),
         );
 
-        result
-    }
-
-    pub(crate) fn serialize_for_moderator(&self) -> WampDict {
-        let mut result = self.serialize_common();
-
-        result.insert("state".into(), Arg::Dict(self.state.serialize(true)));
-        result.insert("is_moderator".into(), Arg::Bool(true));
-
-        result
-    }
-
-    pub(crate) fn serialize_for_players(&self) -> WampDict {
-        let mut result = self.serialize_common();
-
-        result.insert("state".into(), Arg::Dict(self.state.serialize(false)));
-        result.insert("is_moderator".into(), Arg::Bool(false));
+        result.insert(
+            "state".into(),
+            Arg::Dict(self.state.serialize(for_moderator)),
+        );
+        result.insert("is_moderator".into(), Arg::Bool(for_moderator));
 
         result
     }
@@ -617,17 +623,8 @@ impl Game {
                 }
             }
 
-            // If we're in final jeopardy, just remove them from the player_info if they've already
-            // submitted their wager.
-            (
-                GameState::FinalJeopardy {
-                    ref mut player_info,
-                    ..
-                },
-                _,
-            ) => {
-                player_info.remove(&player_id);
-            }
+            // If we're in final jeopardy, no need to do anything.
+            (GameState::FinalJeopardy { .. }, _) => {}
         };
 
         true
@@ -689,7 +686,6 @@ impl Game {
             question: question.clue,
             question_revealed: false,
             answers_locked: false,
-            player_info: HashMap::with_capacity(self.players.len()),
         };
 
         Ok(())
@@ -850,19 +846,12 @@ impl Game {
             }
 
             GameState::FinalJeopardy {
-                ref mut player_info,
                 question_revealed: false,
                 ..
             } => {
-                player_info.insert(
-                    caller_id.clone(),
-                    FinalJeopardyInfo {
-                        answer: None,
-                        answer_revealed: false,
-                        wager,
-                        wager_revealed: false,
-                    },
-                );
+                if let Some(ref mut player) = self.players.get_mut(caller_id) {
+                    player.final_jeopardy_info.wager = Some(wager);
+                }
             }
 
             _ => return Err(Error::InvalidStateForOperation),
@@ -878,19 +867,105 @@ impl Game {
     ) -> Result<(), Error> {
         match &mut self.state {
             GameState::FinalJeopardy {
-                ref mut player_info,
+                answers_locked: false,
                 ..
             } => {
-                player_info
-                    .entry(id.clone())
-                    .or_insert_with(FinalJeopardyInfo::default)
-                    .answer = Some(answer.to_string());
+                if let Some(mut player) = self.players.get_mut(id) {
+                    player.final_jeopardy_info.answer = Some(answer.to_string());
+                } else {
+                    warn!("Tried to submit final jeopardy answer for non-existant player");
+                }
+
+                Ok(())
             }
 
-            _ => return Err(Error::InvalidStateForOperation),
+            _ => Err(Error::InvalidStateForOperation),
         }
+    }
 
-        Ok(())
+    pub(crate) fn reveal_final_jeopardy_question(&mut self) -> Result<(), Error> {
+        match &mut self.state {
+            GameState::FinalJeopardy {
+                ref mut question_revealed,
+                ..
+            } => {
+                *question_revealed = true;
+                Ok(())
+            }
+
+            _ => Err(Error::InvalidStateForOperation),
+        }
+    }
+
+    pub(crate) fn lock_final_jeopardy_answers(&mut self) -> Result<(), Error> {
+        match &mut self.state {
+            GameState::FinalJeopardy {
+                ref mut answers_locked,
+                ..
+            } => {
+                *answers_locked = true;
+                Ok(())
+            }
+
+            _ => Err(Error::InvalidStateForOperation),
+        }
+    }
+
+    pub(crate) fn reveal_final_jeopardy_info(
+        &mut self,
+        player_id: &PlayerId,
+        info_type: FinalJeopardyInfoType,
+    ) -> Result<(), Error> {
+        match &mut self.state {
+            GameState::FinalJeopardy { .. } => {
+                if let Some(mut player) = self.players.get_mut(player_id) {
+                    match info_type {
+                        FinalJeopardyInfoType::Answer => {
+                            player.final_jeopardy_info.answer_revealed = true;
+                        }
+                        FinalJeopardyInfoType::Wager => {
+                            player.final_jeopardy_info.wager_revealed = true;
+                        }
+                    }
+                } else {
+                    warn!("Tried to reveal final jeopardy info for player not in map");
+                }
+
+                Ok(())
+            }
+
+            _ => Err(Error::InvalidStateForOperation),
+        }
+    }
+
+    pub(crate) fn evaluate_final_jeopardy_answer(
+        &mut self,
+        player_id: &PlayerId,
+        answer_type: AnswerType,
+    ) -> Result<(), Error> {
+        match &self.state {
+            GameState::FinalJeopardy { .. } => {
+                if let Some(mut player) = self.players.get_mut(player_id) {
+                    let wager = player.final_jeopardy_info.wager.unwrap_or(0);
+
+                    match answer_type {
+                        AnswerType::Correct => {
+                            player.score += wager;
+                        }
+                        AnswerType::Incorrect => {
+                            player.score -= wager;
+                        }
+                        AnswerType::Skip => {}
+                    }
+                } else {
+                    warn!("Tried to evalue final jeopardy answer for a non-existant player");
+                }
+
+                Ok(())
+            }
+
+            _ => Err(Error::InvalidStateForOperation),
+        }
     }
 
     pub(crate) fn buzz(&mut self, id: PlayerId) -> Result<(), Error> {

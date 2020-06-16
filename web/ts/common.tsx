@@ -35,10 +35,16 @@ export namespace ServerData {
         players: [string];  // names
     }
 
+    export interface FinalJeopardyInfo {
+        wager: string | undefined,
+        answer: string | null | undefined, // null -> no answer yet; undefined -> we aren't allowed to see yet
+    }
+
     export interface Player {
         name: string,
         score: string,
         avatar_url: string,
+        final_jeopardy_info: FinalJeopardyInfo,
     }
 
     export interface GameStateUpdate {
@@ -132,17 +138,11 @@ export namespace ServerData {
         active_player: string,
     }
 
-    export interface FinalJeopardyInfo {
-        wager: string | undefined,
-        answer: string | null | undefined, // null -> no answer yet; undefined -> we aren't allowed to see yet
-    }
-
     export interface FinalJeopardy {
         type: 'FinalJeopardy',
         category: string,
         answers_locked: boolean,
         question: Clue | undefined,
-        player_info: { [playerId: string]: FinalJeopardyInfo },
     }
 
     export type RemoteGameState =

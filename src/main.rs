@@ -182,8 +182,8 @@ impl JeopardyState {
                 .try_read_for(OPERATION_TIMEOUT)
                 .ok_or(Error::LockTimeout)?;
 
-            let moderator_state = game.serialize_for_moderator();
-            let player_state = game.serialize_for_players();
+            let moderator_state = game.serialize(true);
+            let player_state = game.serialize(false);
 
             MSG_QUEUE
                 .get()
@@ -249,7 +249,7 @@ async fn main() {
     )
     .await
     .expect("Failed to connect to router!");
-    trace!("Connected!");
+    info!("Connected!");
 
     // Spawn the WAMP event loop (which enables processing messages out-of-order).
     tokio::spawn(event_loop);
@@ -262,7 +262,7 @@ async fn main() {
         }
     });
 
-    info!("Connected!");
+    info!("Event loop and RPC queue ready!");
 
     // Spawn the garbage collection task (it removes games started more than 24 hours ago).
     tokio::spawn(async move {
@@ -297,7 +297,7 @@ async fn main() {
         .join_realm(WAMP_REALM)
         .await
         .expect("Failed to join realm!");
-    info!("Joined realm {}", WAMP_REALM);
+    info!("Joined realm {}!", WAMP_REALM);
 
     rpc_register!(client, {
         // Meta functions
@@ -313,7 +313,11 @@ async fn main() {
         "jpdy.select_square" => server::select_square,
         "jpdy.enable_buzzer" => server::enable_buzzer,
         "jpdy.answer" => server::answer,
-        "jpdy.start_final_jeopardy" => server::start_final_jeopardy,
+        "jpdy.final_jeopardy.start" => server::start_final_jeopardy,
+        "jpdy.final_jeopardy.reveal_question" => server::reveal_final_jeopardy_question,
+        "jpdy.final_jeopardy.lock_answers" => server::lock_final_jeopardy_answers,
+        "jpdy.final_jeopardy.reveal_info" => server::reveal_final_jeopardy_info,
+        "jpdy.final_jeopardy.evaluate_answer" => server::evaluate_final_jeopardy_answer,
         "jpdy.change_square_state" => server::change_square_state,
         "jpdy.change_player_score" => server::change_player_score,
 

@@ -113,7 +113,7 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     getController(gameState: ServerData.RemoteGameState): string | null {
-        if (gameState.type === 'NoBoard') {
+        if (gameState.type === 'NoBoard' || gameState.type === 'FinalJeopardy') {
             return this.state.controllerId;
         } else {
             return gameState.controller || null;
@@ -129,7 +129,7 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     getBoard(gameState: ServerData.RemoteGameState): ServerData.Board {
-        if (gameState.type === 'NoBoard') {
+        if (gameState.type === 'NoBoard' || gameState.type === 'FinalJeopardy') {
             return this.getEmptyBoard();
         } else {
             return gameState.board;
