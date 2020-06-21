@@ -2,7 +2,8 @@ import autobahn from 'autobahn';
 import React from 'react';
 import { ServerData, handleError, Activity, JeopardyContext, EventNames } from './common';
 import { Board } from './board';
-import { ModeratorControls, PlayerControls } from './controls';
+import { ModeratorControls } from './moderatorControls';
+import { PlayerControls } from './playerControls';
 import { PlayersList } from './players';
 import { Toolbar } from './toolbar';
 
@@ -13,6 +14,7 @@ interface GameState {
     players: { [player_id: string]: ServerData.Player },
     controllerId: string | null,
     activePlayerId: string | null,
+    moderatorName: string | null,
 }
 
 export interface GameProps {
@@ -31,7 +33,8 @@ export class Game extends React.Component<GameProps, GameState> {
         players: {},
         controllerId: null,
         activePlayerId: null,
-    }
+        moderatorName: null,
+    };
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
 
@@ -148,6 +151,7 @@ export class Game extends React.Component<GameProps, GameState> {
             players: update.players,
             controllerId: this.getController(update.state),
             activePlayerId: this.getActivePlayer(update.state),
+            moderatorName: update.moderator,
         });
     }
 
@@ -269,7 +273,10 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let playerScore = 0;
-        let playerName = 'Moderator';
+        let playerName = '';
+        if (this.state.isModerator && this.state.moderatorName !== null) {
+            playerName = this.state.moderatorName;
+        }
         if (this.context.joinInfo !== null && this.state.players[this.context.joinInfo.playerId]) {
             playerScore = +this.state.players[this.context.joinInfo.playerId].score;
             playerName = this.state.players[this.context.joinInfo.playerId].name;

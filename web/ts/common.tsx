@@ -46,7 +46,7 @@ export class JeopardyContextClass implements JeopardyContextType {
         session: autobahn.Session | null,
         joinInfo: GameJoinInfo | null,
         minCategoryYear: number | null,
-        maxCategoryYear: number | null
+        maxCategoryYear: number | null,
     ) {
         this.session = session;
         this.joinInfo = joinInfo;
