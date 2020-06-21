@@ -108,14 +108,19 @@ export interface GameJoinInfo {
 
 export enum Activity {
     Wait,
-    Moderate,
     WaitForBuzz,
     WaitForDailyDoubleWager,
-    Buzz,               // player only
-    DailyDoubleWager,   // player only
-    WaitForEval,        // player only
-    EnableBuzzer,       // moderator only
-    EvaluateAnswer,     // moderator only
+    FinalJeopardy,
+
+    // Player only
+    Buzz,
+    DailyDoubleWager,
+    WaitForEval,
+
+    // Moderator only
+    Moderate,
+    EnableBuzzer,
+    EvaluateAnswer,
 }
 
 // Types that come from the server
@@ -128,7 +133,9 @@ export namespace ServerData {
 
     export interface FinalJeopardyInfo {
         wager: string | undefined,
+        wager_revealed: boolean | undefined,
         answer: string | null | undefined, // null -> no answer yet; undefined -> we aren't allowed to see yet
+        answer_revealed: boolean | undefined,
     }
 
     export interface Player {

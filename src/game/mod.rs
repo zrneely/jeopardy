@@ -108,6 +108,17 @@ impl Player {
                     }
                 }
 
+                if for_moderator {
+                    player_result.insert(
+                        "wager_revealed".into(),
+                        Arg::Bool(self.final_jeopardy_info.wager_revealed),
+                    );
+                    player_result.insert(
+                        "answer_revealed".into(),
+                        Arg::Bool(self.final_jeopardy_info.answer_revealed),
+                    );
+                }
+
                 player_result
             }),
         );
@@ -300,7 +311,7 @@ impl GameState {
                 result.insert("category".into(), Arg::String(category_name.clone()));
                 result.insert("answers_locked".into(), Arg::Bool(*answers_locked));
 
-                if *question_revealed || for_moderator {
+                if *question_revealed {
                     result.insert("question".into(), Arg::Dict(question.serialize()));
                 }
             }

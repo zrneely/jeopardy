@@ -10,7 +10,7 @@ struct Row {
     row_id: u64,
     game_id: u64,
     air_date: String,
-    air_year: u16,
+    air_year: String,
     r#type: RowType,
     cat_id: String,
     q_id: String,
@@ -56,7 +56,6 @@ pub struct FinalJeopardyQuestion {
     pub category: String,
     pub clue: Clue,
     pub answer: String,
-    pub air_year: u16,
 }
 
 #[derive(Debug, Default)]
@@ -94,16 +93,17 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
             }
         }
 
-        if group[0].air_year > jeopardy_data.max_year {
-            jeopardy_data.max_year = group[0].air_year;
+        let air_year = group[0].air_year.parse().unwrap();
+        if air_year > jeopardy_data.max_year {
+            jeopardy_data.max_year = air_year;
         }
-        if group[0].air_year < jeopardy_data.min_year {
-            jeopardy_data.min_year = group[0].air_year;
+        if air_year < jeopardy_data.min_year {
+            jeopardy_data.min_year = air_year;
         }
 
         jeopardy_data.categories.push(Category {
             title: group[0].category.clone(),
-            air_year: group[0].air_year,
+            air_year,
             commentary: if group[0].category_comm.is_empty() {
                 None
             } else {
@@ -126,7 +126,6 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
             .final_jeopardy_questions
             .push(FinalJeopardyQuestion {
                 category: row.category,
-                air_year: row.air_year,
                 answer,
                 clue,
             });

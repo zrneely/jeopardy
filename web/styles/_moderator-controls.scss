@@ -79,6 +79,34 @@ div.moderator-controls-column {
     }
 }
 
+.eval-button-reveal-question {
+    @include common.default-button;
+    @include common.spaced-horiz;
+
+    flex: 1;
+    background-color: rgb(197, 87, 87);
+    color: black;
+    border: 2px solid black;
+
+    &:hover:not(:disabled) {
+        background-color: darken(rgb(197, 87, 87), 10%);
+    }
+}
+
+.eval-button-lock-answers {
+    @include common.default-button;
+    @include common.spaced-horiz;
+
+    flex: 1;
+    background-color: rgb(179, 87, 197);
+    color: black;
+    border: 2px solid black;
+
+    &:hover:not(:disabled) {
+        background-color: darken(rgb(179, 87, 197), 10%);
+    }
+}
+
 button.new-board-button {
     @include common.default-button;
     @include common.spaced-horiz;

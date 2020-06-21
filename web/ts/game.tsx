@@ -6,6 +6,7 @@ import { ModeratorControls } from './moderatorControls';
 import { PlayerControls } from './playerControls';
 import { PlayersList } from './players';
 import { Toolbar } from './toolbar';
+import { FinalJeopardy } from './finalJeopardy';
 
 interface GameState {
     isModerator: boolean,
@@ -15,6 +16,9 @@ interface GameState {
     controllerId: string | null,
     activePlayerId: string | null,
     moderatorName: string | null,
+    finalJeopardyQuestion: ServerData.Clue | null,
+    finalJeopardyAnswersLocked: boolean,
+    finalJeopardySelectedPlayerId: string | null,
 }
 
 export interface GameProps {
@@ -34,6 +38,9 @@ export class Game extends React.Component<GameProps, GameState> {
         controllerId: null,
         activePlayerId: null,
         moderatorName: null,
+        finalJeopardyQuestion: null,
+        finalJeopardyAnswersLocked: false,
+        finalJeopardySelectedPlayerId: null,
     };
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
@@ -89,6 +96,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 case 'WaitingForBuzzer': return Activity.WaitForBuzz;
                 case 'WaitingForDailyDoubleWager': return Activity.WaitForDailyDoubleWager;
                 case 'WaitingForAnswer': return Activity.EvaluateAnswer;
+                case 'FinalJeopardy': return Activity.FinalJeopardy;
                 default: {
                     handleError('unknown game state', '', true);
                     return Activity.Wait;
@@ -102,6 +110,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 case 'WaitingForBuzzer': return Activity.Buzz;
                 case 'WaitingForDailyDoubleWager': return Activity.DailyDoubleWager;
                 case 'WaitingForAnswer': return Activity.WaitForEval;
+                case 'FinalJeopardy': return Activity.FinalJeopardy;
                 default: {
                     handleError('unknown game state', '', true);
                     return Activity.Wait;
@@ -255,23 +264,6 @@ export class Game extends React.Component<GameProps, GameState> {
             activeName = this.state.players[this.state.activePlayerId].name;
         }
 
-        let controls;
-        if (this.state.isModerator) {
-            controls = <ModeratorControls
-                activity={this.state.currentActivity}
-                controllingPlayer={controllerName}
-                activePlayer={activeName}
-                seed={this.state.board.seed}
-                isBoardLoaded={this.state.board.id !== -1} />;
-        } else {
-            controls = <PlayerControls
-                activity={this.state.currentActivity}
-                controllingPlayer={controllerName}
-                activePlayer={activeName}
-                seed={this.state.board.seed}
-                isBoardLoaded={this.state.board.id !== -1} />;
-        }
-
         let playerScore = 0;
         let playerName = '';
         if (this.state.isModerator && this.state.moderatorName !== null) {
@@ -282,15 +274,47 @@ export class Game extends React.Component<GameProps, GameState> {
             playerName = this.state.players[this.context.joinInfo.playerId].name;
         }
 
+        let board;
+        if (this.state.currentActivity !== Activity.FinalJeopardy) {
+            board = <Board
+                data={this.state.board}
+                isModerator={this.state.isModerator}
+                isControllingPlayer={this.state.controllerId === (
+                    this.context.joinInfo !== null ? this.context.joinInfo.playerId : null)}
+                activity={this.state.currentActivity}
+                playerScore={playerScore} />;
+        } else {
+            board = <FinalJeopardy
+                isModerator={this.state.isModerator}
+                players={this.state.players}
+                question={this.state.finalJeopardyQuestion}
+                answersLocked={this.state.finalJeopardyAnswersLocked} />;
+        }
+
+        let controls;
+        if (this.state.isModerator) {
+            controls = <ModeratorControls
+                activity={this.state.currentActivity}
+                controllingPlayer={controllerName}
+                activePlayer={activeName}
+                seed={this.state.board.seed}
+                players={this.state.players}
+                finalJeopardyAnswersLocked={this.state.finalJeopardyAnswersLocked}
+                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestion !== null}
+                finalJeopardySelectedPlayerId={this.state.finalJeopardySelectedPlayerId}
+                isBoardLoaded={this.state.board.id !== -1} />;
+        } else {
+            controls = <PlayerControls
+                activity={this.state.currentActivity}
+                controllingPlayer={controllerName}
+                activePlayer={activeName}
+                seed={this.state.board.seed}
+                isBoardLoaded={this.state.board.id !== -1} />;
+        }
+
         return <div className="game">
             <div className="game-left-panel">
-                <Board
-                    data={this.state.board}
-                    isModerator={this.state.isModerator}
-                    isControllingPlayer={this.state.controllerId === (
-                        this.context.joinInfo !== null ? this.context.joinInfo.playerId : null)}
-                    activity={this.state.currentActivity}
-                    playerScore={playerScore} />
+                {board}
                 {controls}
             </div>
             <div className="game-right-panel">
