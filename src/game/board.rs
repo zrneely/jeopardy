@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{convert::TryInto, fmt};
 
 use rand::Rng;
 use wamp_async::{Arg, WampDict};
@@ -165,7 +165,7 @@ impl JeopardyBoard {
 pub struct Category {
     pub title: String,
     pub commentary: Option<String>,
-    pub air_year: String,
+    pub air_year: u16,
     pub squares: [Square; CATEGORY_HEIGHT],
 }
 impl Category {
@@ -173,7 +173,10 @@ impl Category {
         let mut result = WampDict::new();
 
         result.insert("title".into(), Arg::String(self.title.clone()));
-        result.insert("air_year".into(), Arg::String(self.air_year.clone()));
+        result.insert(
+            "air_year".into(),
+            Arg::Integer(self.air_year.try_into().unwrap()),
+        );
 
         if let Some(ref commentary) = self.commentary {
             result.insert("commentary".into(), Arg::String(commentary.clone()));

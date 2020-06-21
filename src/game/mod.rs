@@ -395,7 +395,17 @@ impl Game {
             "state".into(),
             Arg::Dict(self.state.serialize(for_moderator)),
         );
+
         result.insert("is_moderator".into(), Arg::Bool(for_moderator));
+        result.insert("moderator".into(), Arg::String(self.moderator.name.clone()));
+        result.insert(
+            "min_year".into(),
+            Arg::Integer(JEOPARDY_DATA.get().unwrap().min_year.try_into().unwrap()),
+        );
+        result.insert(
+            "max_year".into(),
+            Arg::Integer(JEOPARDY_DATA.get().unwrap().max_year.try_into().unwrap()),
+        );
 
         result
     }

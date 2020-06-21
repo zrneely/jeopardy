@@ -1,11 +1,6 @@
 import React from 'react';
 import ReactModal from 'react-modal';
-import { Activity, handleError, ServerData } from './common'
-
-export interface ControlPanel {
-    startTimer: () => void,
-    stopTimer: () => void,
-}
+import { Activity, handleError, ServerData, JeopardyContext, EventNames } from './common'
 
 const TIMER_STATES = [
     [false, false, false, false, false, false, false, false, false],
@@ -51,19 +46,15 @@ interface ControlsProps {
     activePlayer: string | null, // name, not ID
     seed: string | null,
     isBoardLoaded: boolean,
-    newBoardClicked: (seed: string | null, dailyDoubles: number, multiplier: number) => void,
-    evalButtonClicked: (type: ServerData.AnswerType) => void,
-    enableBuzzerClicked: () => void,
-    buzzerClicked: () => void,
 }
 interface ModeratorControlsState {
     newGameModalOpen: boolean,
     selectedBoardType: BoardType,
     timerTimeRemaining: number,
 }
-export class ModeratorControls
-    extends React.Component<ControlsProps, ModeratorControlsState>
-    implements ControlPanel {
+export class ModeratorControls extends React.Component<ControlsProps, ModeratorControlsState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
 
     state: ModeratorControlsState = {
         newGameModalOpen: false,
@@ -76,6 +67,9 @@ export class ModeratorControls
         React.createRef<HTMLInputElement>(),
         React.createRef<HTMLInputElement>(),
     ];
+
+    startTimerId = -1;
+    stopTimerId = -1;
 
     newBoardDailyDoubleInput = React.createRef<HTMLInputElement>();
 
@@ -91,6 +85,20 @@ export class ModeratorControls
         this.handleEvalCorrectClicked = this.handleEvalCorrectClicked.bind(this);
         this.handleEvalIncorrectClicked = this.handleEvalIncorrectClicked.bind(this);
         this.handleEvalSkipClicked = this.handleEvalSkipClicked.bind(this);
+    }
+
+    componentDidMount() {
+        this.startTimerId = this.context.listenEvent(EventNames.StartTimer, () => {
+            this.startTimer();
+        });
+        this.stopTimerId = this.context.listenEvent(EventNames.StopTimer, () => {
+            this.stopTimer();
+        });
+    }
+
+    componentWillUnmount() {
+        this.context.unlistenEvent(EventNames.StartTimer, this.startTimerId);
+        this.context.unlistenEvent(EventNames.StopTimer, this.stopTimerId);
     }
 
     componentDidUpdate(prevProps: ControlsProps) {
@@ -136,7 +144,7 @@ export class ModeratorControls
             dailyDoubles = this.newBoardDailyDoubleInput.current.valueAsNumber;
         }
 
-        let multiplier;
+        let multiplier: number;
         switch (this.state.selectedBoardType) {
             case BoardType.Normal: {
                 multiplier = 200;
@@ -152,7 +160,20 @@ export class ModeratorControls
             }
         }
 
-        this.props.newBoardClicked(seed, dailyDoubles, multiplier);
+        this.context.withSession((session, argument) => {
+            argument['multiplier'] = `${multiplier}`;
+            argument['daily_doubles'] = `${dailyDoubles}`;
+            argument['categories'] = '6';
+            if (seed !== null) {
+                argument['seed'] = seed;
+            }
+
+            session.call('jpdy.new_board', [], argument).then(() => {
+                console.log('new board call succeeded!');
+            }, (error) => {
+                handleError('new board call failed', error, false);
+            });
+        });
 
         this.setState({
             newGameModalOpen: false,
@@ -196,27 +217,50 @@ export class ModeratorControls
         });
     }
 
+    enableBuzzerClicked() {
+        this.context.withSession((session, argument) => {
+            session.call('jpdy.enable_buzzer', [], argument).then(() => {
+                console.log('enable buzzer call succeeded!');
+            }, (error) => {
+                handleError('enable buzzer call failed', error, false);
+            });
+        });
+    }
+
+    evalButtonClicked(answer: ServerData.AnswerType) {
+        this.context.withSession((session, argument) => {
+            argument['answer'] = answer;
+
+            session.call('jpdy.answer', [], argument).then(() => {
+                console.log('answer call succeeded!');
+                this.stopTimer();
+            }, (error) => {
+                handleError('answer call failed', error, false);
+            });
+        });
+    }
+
     handleEvalCorrectClicked() {
         if (this.props.activity === Activity.EnableBuzzer) {
-            this.props.enableBuzzerClicked();
+            this.enableBuzzerClicked();
         } else {
-            this.props.evalButtonClicked(ServerData.AnswerType.Correct);
+            this.evalButtonClicked(ServerData.AnswerType.Correct);
         }
     }
 
     handleEvalIncorrectClicked() {
         if (this.props.activity === Activity.EnableBuzzer) {
-            this.props.enableBuzzerClicked();
+            this.enableBuzzerClicked();
         } else {
-            this.props.evalButtonClicked(ServerData.AnswerType.Incorrect);
+            this.evalButtonClicked(ServerData.AnswerType.Incorrect);
         }
     }
 
     handleEvalSkipClicked() {
         if (this.props.activity === Activity.EnableBuzzer) {
-            this.props.enableBuzzerClicked();
+            this.enableBuzzerClicked();
         } else {
-            this.props.evalButtonClicked(ServerData.AnswerType.Skip);
+            this.evalButtonClicked(ServerData.AnswerType.Skip);
         }
     }
 
@@ -422,20 +466,37 @@ interface PlayerControlsState {
     timerTimeRemaining: number,
     buzzerThrottled: boolean,
 }
-export class PlayerControls
-    extends React.Component<ControlsProps, PlayerControlsState>
-    implements ControlPanel {
+export class PlayerControls extends React.Component<ControlsProps, PlayerControlsState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
 
     state: PlayerControlsState = {
         timerTimeRemaining: 0,
         buzzerThrottled: false,
     };
 
+    startTimerId = -1;
+    stopTimerId = -1;
+
     constructor(props: ControlsProps) {
         super(props);
 
         this.handleBuzzClicked = this.handleBuzzClicked.bind(this);
         this.handleTimerFired = this.handleTimerFired.bind(this);
+    }
+
+    componentDidMount() {
+        this.startTimerId = this.context.listenEvent(EventNames.StartTimer, () => {
+            this.startTimer();
+        });
+        this.stopTimerId = this.context.listenEvent(EventNames.StopTimer, () => {
+            this.stopTimer();
+        });
+    }
+
+    componentWillUnmount() {
+        this.context.unlistenEvent(EventNames.StartTimer, this.startTimerId);
+        this.context.unlistenEvent(EventNames.StopTimer, this.stopTimerId);
     }
 
     handleTimerFired() {
@@ -459,7 +520,15 @@ export class PlayerControls
         // If we're allowed to buzz, do so.
         if ((this.state.timerTimeRemaining === 0) && (this.props.activity === Activity.Buzz)) {
             this.startTimer();
-            this.props.buzzerClicked();
+
+            this.context.withSession((session, argument) => {
+                session.call('jpdy.buzz', [], argument).then(() => {
+                    console.log('buzz succeeded!');
+                }, (error) => {
+                    handleError('buzz failed', error, false);
+                });
+            });
+
         } else {
             // Otherwise, disable the buzzer for the throttle time.
             this.setState({

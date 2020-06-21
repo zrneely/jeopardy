@@ -9,7 +9,7 @@ import ReactDOM from 'react-dom';
 
 import { Lobby } from './lobby';
 import { Game } from './game';
-import { GameJoinInfo, handleError } from './common';
+import { GameJoinInfo, handleError, JeopardyContext, GlobalMetadata, JeopardyContextClass } from './common';
 
 const WAMP_REALM = "jpdy";
 const LS_KEY_CUR_GAME = "curGame";
@@ -18,17 +18,17 @@ interface JeopardyProps {
   routerUrlPromise: Promise<string>,
 }
 
-interface JeopardyState {
+interface JeopardyState extends GlobalMetadata {
   routerUrl: string | null,
-  session: autobahn.Session | null,
-  currentJoinInfo: GameJoinInfo | null,
 }
 
 class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   state: JeopardyState = {
     routerUrl: null,
     session: null,
-    currentJoinInfo: null,
+    joinInfo: null,
+    minCategoryYear: null,
+    maxCategoryYear: null,
   };
 
   connection: autobahn.Connection | null = null;
@@ -39,13 +39,14 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     this.joinGame = this.joinGame.bind(this);
     this.makeGame = this.makeGame.bind(this);
     this.leaveGame = this.leaveGame.bind(this);
+    this.gotMetadata = this.gotMetadata.bind(this);
   }
 
   componentDidMount() {
     const existingGameData = localStorage.getItem(LS_KEY_CUR_GAME);
     if (existingGameData !== null) {
       this.setState({
-        currentJoinInfo: JSON.parse(existingGameData),
+        joinInfo: JSON.parse(existingGameData),
       });
     }
 
@@ -76,6 +77,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   componentWillUnmount() {
     if (this.connection !== null) {
       this.connection.close();
+      this.connection = null;
     }
   }
 
@@ -103,7 +105,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(game));
 
       this.setState({
-        currentJoinInfo: game,
+        joinInfo: game,
       });
     }, (error) => {
       handleError('join game failed', error, true);
@@ -113,7 +115,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   leaveGame() {
     localStorage.removeItem(LS_KEY_CUR_GAME);
     this.setState({
-      currentJoinInfo: null,
+      joinInfo: null,
     });
   }
 
@@ -139,30 +141,45 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(game));
 
       this.setState({
-        currentJoinInfo: game,
+        joinInfo: game,
       });
     }, (error) => {
       handleError('new game creation failed', error, true);
     });
   }
 
+  gotMetadata(minCategoryYear: number, maxCategoryYear: number) {
+    this.setState({
+      minCategoryYear,
+      maxCategoryYear,
+    });
+  }
+
   render() {
+    let component;
     if (this.state.session === null) {
-      return <div className="no-connection-msg">Connecting...</div>;
+      component = <div className="no-connection-msg">Connecting...</div>;
     }
-    else if (this.state.currentJoinInfo === null) {
+    else if (this.state.joinInfo === null) {
       // We're in the lobby
-      return <Lobby
+      component = <Lobby
         session={this.state.session}
         makeGameCallback={this.makeGame}
-        joinGameCallback={this.joinGame} />;
+        joinGameCallback={this.joinGame}
+        gotGlobalMetadataCallback={this.gotMetadata} />;
     } else {
       // We're in a game
-      return <Game
-        session={this.state.session}
-        joinInfo={this.state.currentJoinInfo}
-        leaveGameCallback={this.leaveGame} />
+      component = <Game
+        leaveGameCallback={this.leaveGame}
+        gotGlobalMetadataCallback={this.gotMetadata} />
     }
+
+    return <JeopardyContext.Provider value={new JeopardyContextClass(
+      this.state.session, this.state.joinInfo,
+      this.state.minCategoryYear, this.state.maxCategoryYear,
+    )}>
+      {component}
+    </JeopardyContext.Provider>;
   }
 }
 

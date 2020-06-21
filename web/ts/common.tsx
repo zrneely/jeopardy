@@ -1,3 +1,6 @@
+import React from 'react';
+import autobahn from 'autobahn';
+
 export function handleError(msg: string, error: any, clearData: boolean) {
     console.error(`${msg}: ${JSON.stringify(error)}`);
     alert(msg);
@@ -7,6 +10,94 @@ export function handleError(msg: string, error: any, clearData: boolean) {
         location.reload();
     }
 }
+
+export enum EventNames {
+    StartTimer = 'StartTimer',
+    StopTimer = 'StopTimer',
+}
+
+export interface GlobalMetadata {
+    minCategoryYear: number | null,
+    maxCategoryYear: number | null,
+    session: autobahn.Session | null;
+    joinInfo: GameJoinInfo | null;
+}
+
+export interface JeopardyContextType extends GlobalMetadata {
+    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string }) => void): void,
+    fireEvent(name: string): void,
+    listenEvent(name: string, callback: () => void): number,
+    unlistenEvent(name: string, id: number): void,
+}
+
+interface EventHandlerList {
+    map: { [id: string]: () => void },
+    nextId: number,
+}
+export class JeopardyContextClass implements JeopardyContextType {
+    session: autobahn.Session | null;
+    joinInfo: GameJoinInfo | null;
+    minCategoryYear: number | null;
+    maxCategoryYear: number | null;
+
+    eventHandlers: { [name: string]: EventHandlerList }
+
+    constructor(
+        session: autobahn.Session | null,
+        joinInfo: GameJoinInfo | null,
+        minCategoryYear: number | null,
+        maxCategoryYear: number | null
+    ) {
+        this.session = session;
+        this.joinInfo = joinInfo;
+        this.minCategoryYear = minCategoryYear;
+        this.maxCategoryYear = maxCategoryYear;
+        this.eventHandlers = {};
+    }
+
+    fireEvent(name: string) {
+        if (this.eventHandlers.hasOwnProperty(name)) {
+            Object.keys(this.eventHandlers[name].map).forEach((id) => {
+                setTimeout(() => this.eventHandlers[name].map[id](), 0);
+            });
+        }
+    }
+
+    listenEvent(name: string, callback: () => void): number {
+        if (!this.eventHandlers.hasOwnProperty(name)) {
+            this.eventHandlers[name] = {
+                map: {},
+                nextId: 0,
+            };
+        }
+
+        const id = this.eventHandlers[name].nextId;
+        this.eventHandlers[name].map[id] = callback;
+        this.eventHandlers[name].nextId += 1;
+        return id;
+    }
+
+    unlistenEvent(name: string, id: number) {
+        if (this.eventHandlers.hasOwnProperty(name) && this.eventHandlers[name].hasOwnProperty(id)) {
+            delete this.eventHandlers[name].map[id];
+        }
+    }
+
+    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string }) => void) {
+        if (this.session !== null && this.joinInfo !== null) {
+            callback(this.session, {
+                game_id: this.joinInfo.gameId,
+                player_id: this.joinInfo.playerId,
+                auth: this.joinInfo.token,
+            });
+        } else {
+            handleError('session closed', null, false);
+        }
+    }
+}
+
+export const JeopardyContext = React.createContext<JeopardyContextType>(
+    new JeopardyContextClass(null, null, null, null));
 
 export interface GameJoinInfo {
     gameId: string,
@@ -52,6 +143,9 @@ export namespace ServerData {
         players: { [player_id: string]: Player },
         state: RemoteGameState,
         is_moderator: boolean,
+        moderator: string, // name
+        min_year: number,
+        max_year: number,
     }
 
     export enum SquareState {
@@ -81,7 +175,7 @@ export namespace ServerData {
 
     export interface Category {
         title: string,
-        air_year: string,
+        air_year: number,
         commentary: string | undefined,
         squares: Square[],
     }

@@ -10,3 +10,4 @@ crossbar_test/
 *.js.map
 *.bundle.js
 static/
+deploy/

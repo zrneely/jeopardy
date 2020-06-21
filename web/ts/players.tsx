@@ -1,18 +1,20 @@
 import React from 'react';
 import ReactModal from 'react-modal';
-import { ServerData } from './common';
+import { handleError, ServerData, JeopardyContext } from './common';
 
 interface PlayersListProps {
     isModerator: boolean,
     controllerId: string | null,
     activePlayerId: string | null,
     players: { [playerId: string]: ServerData.Player },
-    adjScoreCallback: (playerId: string, newScore: number) => void,
 }
 interface PlayersListState {
     playerIdAdjusting: string | null,
 }
 export class PlayersList extends React.Component<PlayersListProps, PlayersListState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
+
     state: PlayersListState = {
         playerIdAdjusting: null,
     }
@@ -47,9 +49,16 @@ export class PlayersList extends React.Component<PlayersListProps, PlayersListSt
 
     handleSubmitAdjustScoreModal() {
         if ((this.state.playerIdAdjusting !== null) && (this.adjustScoreModalScoreField.current !== null)) {
-            this.props.adjScoreCallback(
-                this.state.playerIdAdjusting,
-                this.adjustScoreModalScoreField.current.valueAsNumber);
+            this.context.withSession((session, argument) => {
+                argument['target'] = this.state.playerIdAdjusting!;
+                argument['new_score'] = this.adjustScoreModalScoreField.current!.valueAsNumber.toString();
+
+                session.call('jpdy.change_player_score', [], argument).then(() => {
+                    console.log('change_player_score call succeeded!');
+                }, (error) => {
+                    handleError('change_player_score call failed', error, false);
+                });
+            });
         }
 
         this.setState({

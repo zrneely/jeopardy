@@ -1,8 +1,8 @@
 import autobahn from 'autobahn';
 import React from 'react';
-import { GameJoinInfo, ServerData, handleError, Activity } from './common';
+import { ServerData, handleError, Activity, JeopardyContext, EventNames } from './common';
 import { Board } from './board';
-import { ModeratorControls, PlayerControls, ControlPanel } from './controls';
+import { ModeratorControls, PlayerControls } from './controls';
 import { PlayersList } from './players';
 import { Toolbar } from './toolbar';
 
@@ -16,12 +16,14 @@ interface GameState {
 }
 
 export interface GameProps {
-    session: autobahn.Session,
-    joinInfo: GameJoinInfo,
     leaveGameCallback: () => void,
+    gotGlobalMetadataCallback: (minCategoryYear: number, maxCategoryYear: number) => void,
 }
 
 export class Game extends React.Component<GameProps, GameState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
+
     state: GameState = {
         isModerator: false,
         currentActivity: Activity.Wait,
@@ -32,20 +34,13 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
-    private controlPanel: React.RefObject<ControlPanel> = React.createRef();
 
     constructor(props: GameProps) {
         super(props);
 
         this.loadNewState = this.loadNewState.bind(this);
         this.getEmptyBoard = this.getEmptyBoard.bind(this);
-        this.newBoardClicked = this.newBoardClicked.bind(this);
-        this.boardSquareClicked = this.boardSquareClicked.bind(this);
-        this.dailyDoubleWagerSubmitted = this.dailyDoubleWagerSubmitted.bind(this);
-        this.enableBuzzerClicked = this.enableBuzzerClicked.bind(this);
-        this.evalAnswerClicked = this.evalAnswerClicked.bind(this);
-        this.buzzClicked = this.buzzClicked.bind(this);
-        this.adjustScore = this.adjustScore.bind(this);
+
         this.leaveGameClicked = this.leaveGameClicked.bind(this);
         this.endGameClicked = this.endGameClicked.bind(this);
     }
@@ -67,7 +62,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
             categories.push({
                 title: `Category ${i}`,
-                air_year: '',
+                air_year: 420,
                 commentary: undefined,
                 squares,
             });
@@ -142,6 +137,10 @@ export class Game extends React.Component<GameProps, GameState> {
             this.props.leaveGameCallback();
         }
 
+        if (this.context.minCategoryYear === null || this.context.maxCategoryYear === null) {
+            this.props.gotGlobalMetadataCallback(update.min_year, update.max_year);
+        }
+
         this.setState({
             board: this.getBoard(update.state),
             currentActivity: this.getActivity(update.state, update.is_moderator),
@@ -152,161 +151,20 @@ export class Game extends React.Component<GameProps, GameState> {
         });
     }
 
-    newBoardClicked(seed: string | null, dailyDoubles: number, multiplier: number) {
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            multiplier: `${multiplier}`,
-            daily_doubles: `${dailyDoubles}`,
-            categories: '6',
-        };
-        if (seed !== null) {
-            argument['seed'] = seed;
-        }
-
-        this.props.session.call('jpdy.new_board', [], argument).then(() => {
-            console.log('new board call succeeded!');
-        }, (error) => {
-            handleError('new board call failed', error, false);
-        });
-    }
-
-    boardSquareClicked(location: ServerData.BoardLocation) {
-        if (!this.state.isModerator) {
-            return;
-        }
-
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            category: location.category.toString(),
-            row: location.row.toString(),
-        };
-
-        this.props.session.call('jpdy.select_square', [], argument).then(() => {
-            console.log('select square call succeededd!');
-        }, (error) => {
-            handleError('select square call failed', error, false);
-        });
-    }
-
-    dailyDoubleWagerSubmitted(wager: number) {
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            wager: wager.toString(),
-        };
-
-        this.props.session.call('jpdy.submit_wager', [], argument).then(() => {
-            console.log('submit wager call succeeded!');
-
-            if (this.controlPanel.current !== null) {
-                this.controlPanel.current.startTimer();
-            }
-        }, (error) => {
-            handleError('submit wager call failed', error, false);
-        })
-    }
-
-    evalAnswerClicked(answer: ServerData.AnswerType) {
-        if (!this.state.isModerator) {
-            return;
-        }
-
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            answer,
-        };
-
-        this.props.session.call('jpdy.answer', [], argument).then(() => {
-            console.log('answer call succeeded!');
-
-            if (this.controlPanel.current !== null) {
-                this.controlPanel.current.stopTimer();
-            }
-        }, (error) => {
-            handleError('answer call failed', error, false);
-        });
-    }
-
-    enableBuzzerClicked() {
-        if (!this.state.isModerator) {
-            return;
-        }
-
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-        };
-
-        this.props.session.call('jpdy.enable_buzzer', [], argument).then(() => {
-            console.log('enable buzzer call succeeded!');
-        }, (error) => {
-            handleError('enable buzzer call failed', error, false);
-        });
-    }
-
-    buzzClicked() {
-        if (this.state.isModerator) {
-            return;
-        }
-
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-        };
-
-        this.props.session.call('jpdy.buzz', [], argument).then(() => {
-            console.log('buzz succeeded!');
-        }, (error) => {
-            handleError('buzz failed', error, false);
-        });
-    }
-
-    adjustScore(targetPlayerId: string, newScore: number) {
-        if (!this.state.isModerator) {
-            return;
-        }
-
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            target: targetPlayerId,
-            new_score: newScore.toString(),
-        };
-
-        this.props.session.call('jpdy.change_player_score', [], argument).then(() => {
-            console.log('change_player_score call succeeded!');
-        }, (error) => {
-            handleError('change_player_score call failed', error, false);
-        });
-    }
-
     leaveGameClicked() {
         if (this.state.isModerator) {
             return;
         }
 
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-            target: this.props.joinInfo.playerId,
-        };
+        this.context.withSession((session, argument) => {
+            argument['target'] = this.context.joinInfo!.playerId;
 
-        this.props.session.call('jpdy.leave', [], argument).then(() => {
-            console.log('leave game call succeeded!');
-            this.props.leaveGameCallback();
-        }, (error) => {
-            handleError('leave game call failed', error, true);
+            session.call('jpdy.leave', [], argument).then(() => {
+                console.log('leave game call succeeded!');
+                this.props.leaveGameCallback();
+            }, (error) => {
+                handleError('leave game call failed', error, true);
+            });
         });
     }
 
@@ -315,87 +173,67 @@ export class Game extends React.Component<GameProps, GameState> {
             return;
         }
 
-        let argument: { [k: string]: string } = {
-            game_id: this.props.joinInfo.gameId,
-            player_id: this.props.joinInfo.playerId,
-            auth: this.props.joinInfo.token,
-        };
-
-        this.props.session.call('jpdy.end_game', [], argument).then(() => {
-            console.log('end game call succeeded!');
-            this.props.leaveGameCallback();
-        }, (error) => {
-            handleError('end game call failed', error, true);
+        this.context.withSession((session, argument) => {
+            session.call('jpdy.end_game', [], argument).then(() => {
+                console.log('end game call succeeded!');
+                this.props.leaveGameCallback();
+            }, (error) => {
+                handleError('end game call failed', error, true);
+            });
         });
     }
 
     componentDidMount() {
-        let initialState = this.props.session.call<autobahn.Result>('jpdy.game_state', [], {
-            'game_id': this.props.joinInfo.gameId,
-            'player_id': this.props.joinInfo.playerId,
-            'auth': this.props.joinInfo.token,
-        });
+        this.context.withSession((session, argument) => {
+            let initialState = session.call<autobahn.Result>('jpdy.game_state', [], argument);
 
-        let stateSubscription = this.props.session.subscribe(
-            this.props.joinInfo.channel,
-            (_, update) => {
-                this.loadNewState(update);
+            let stateSubscription = session.subscribe(
+                this.context.joinInfo!.channel,
+                (_, update) => {
+                    this.loadNewState(update);
+                });
+
+            Promise.all([
+                initialState, stateSubscription
+            ]).then(([initialState, subscription]) => {
+                this.gameUpdateSubscription = subscription;
+                this.loadNewState(initialState.kwargs);
+            }, (error) => {
+                handleError('game subscription/setup failed', error, true);
             });
-
-        Promise.all([
-            initialState, stateSubscription
-        ]).then(([initialState, subscription]) => {
-            this.gameUpdateSubscription = subscription;
-            this.loadNewState(initialState.kwargs);
-        }, (error) => {
-            handleError('game subscription/setup failed', error, true);
         });
     }
 
     componentWillUnmount() {
-        if (this.gameUpdateSubscription !== null) {
-            this.props.session.unsubscribe(this.gameUpdateSubscription);
+        if (this.gameUpdateSubscription !== null && this.context.session !== null) {
+            this.context.session.unsubscribe(this.gameUpdateSubscription);
             this.gameUpdateSubscription = null;
         }
     }
 
     // Used to start/stop timers triggered by remote actions
     componentDidUpdate(_: any, prevState: GameState) {
-        if (this.controlPanel.current !== null) {
-            // If we're a player and the moderator evaluated an answer,
-            // stop the timer.
-            if ((prevState.currentActivity === Activity.WaitForEval) &&
-                (this.state.currentActivity !== Activity.WaitForEval)) {
+        // If we're a player and the moderator evaluated an answer,
+        // stop the timer.
+        if ((prevState.currentActivity === Activity.WaitForEval) &&
+            (this.state.currentActivity !== Activity.WaitForEval)) {
 
-                this.controlPanel.current.stopTimer();
-            }
-
-            if ((prevState.currentActivity === Activity.EvaluateAnswer) &&
-                (this.state.currentActivity === Activity.Moderate)) {
-
-                this.controlPanel.current.stopTimer();
-            }
-
-            // If we're a moderator and the player submitted their daily double
-            // wager, start the timer.
-            if ((prevState.currentActivity === Activity.WaitForDailyDoubleWager) &&
-                (this.state.currentActivity === Activity.EvaluateAnswer)) {
-
-                this.controlPanel.current.startTimer();
-            }
+            this.context.fireEvent(EventNames.StopTimer);
         }
-    }
 
-    isModeratorControl(
-        _item: React.RefObject<ControlPanel>
-    ): _item is React.RefObject<ModeratorControls> {
-        return this.state.isModerator;
-    }
+        if ((prevState.currentActivity === Activity.EvaluateAnswer) &&
+            (this.state.currentActivity === Activity.Moderate)) {
 
-    isPlayerControl(
-        _item: React.RefObject<ControlPanel>
-    ): _item is React.RefObject<PlayerControls> {
-        return !this.state.isModerator;
+            this.context.fireEvent(EventNames.StopTimer);
+        }
+
+        // If we're a moderator and the player submitted their daily double
+        // wager, start the timer.
+        if ((prevState.currentActivity === Activity.WaitForDailyDoubleWager) &&
+            (this.state.currentActivity === Activity.EvaluateAnswer)) {
+
+            this.context.fireEvent(EventNames.StartTimer);
+        }
     }
 
     render() {
@@ -414,37 +252,27 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let controls;
-        if (this.isModeratorControl(this.controlPanel)) {
+        if (this.state.isModerator) {
             controls = <ModeratorControls
-                ref={this.controlPanel}
                 activity={this.state.currentActivity}
                 controllingPlayer={controllerName}
                 activePlayer={activeName}
                 seed={this.state.board.seed}
-                isBoardLoaded={this.state.board.id !== -1}
-                newBoardClicked={this.newBoardClicked}
-                evalButtonClicked={this.evalAnswerClicked}
-                enableBuzzerClicked={this.enableBuzzerClicked}
-                buzzerClicked={this.buzzClicked} />;
-        } else if (this.isPlayerControl(this.controlPanel)) {
+                isBoardLoaded={this.state.board.id !== -1} />;
+        } else {
             controls = <PlayerControls
-                ref={this.controlPanel}
                 activity={this.state.currentActivity}
                 controllingPlayer={controllerName}
                 activePlayer={activeName}
                 seed={this.state.board.seed}
-                isBoardLoaded={this.state.board.id !== -1}
-                newBoardClicked={this.newBoardClicked}
-                evalButtonClicked={this.evalAnswerClicked}
-                enableBuzzerClicked={this.enableBuzzerClicked}
-                buzzerClicked={this.buzzClicked} />;
+                isBoardLoaded={this.state.board.id !== -1} />;
         }
 
         let playerScore = 0;
         let playerName = 'Moderator';
-        if (this.state.players[this.props.joinInfo.playerId]) {
-            playerScore = +this.state.players[this.props.joinInfo.playerId].score;
-            playerName = this.state.players[this.props.joinInfo.playerId].name;
+        if (this.context.joinInfo !== null && this.state.players[this.context.joinInfo.playerId]) {
+            playerScore = +this.state.players[this.context.joinInfo.playerId].score;
+            playerName = this.state.players[this.context.joinInfo.playerId].name;
         }
 
         return <div className="game">
@@ -452,11 +280,10 @@ export class Game extends React.Component<GameProps, GameState> {
                 <Board
                     data={this.state.board}
                     isModerator={this.state.isModerator}
-                    isControllingPlayer={this.state.controllerId === this.props.joinInfo.playerId}
+                    isControllingPlayer={this.state.controllerId === (
+                        this.context.joinInfo !== null ? this.context.joinInfo.playerId : null)}
                     activity={this.state.currentActivity}
-                    playerScore={playerScore}
-                    squareClickedCallback={this.boardSquareClicked}
-                    dailyDoubleSubmitCallback={this.dailyDoubleWagerSubmitted} />
+                    playerScore={playerScore} />
                 {controls}
             </div>
             <div className="game-right-panel">
@@ -468,7 +295,6 @@ export class Game extends React.Component<GameProps, GameState> {
                 <PlayersList
                     isModerator={this.state.isModerator}
                     players={this.state.players}
-                    adjScoreCallback={this.adjustScore}
                     controllerId={this.state.controllerId}
                     activePlayerId={this.state.activePlayerId} />
             </div>

@@ -1,5 +1,5 @@
 import React, { ChangeEvent } from 'react';
-import { ServerData, handleError, Activity } from './common'
+import { ServerData, handleError, Activity, JeopardyContext, EventNames } from './common'
 
 interface SquareProps {
     data: ServerData.Square,
@@ -48,7 +48,7 @@ class Category extends React.PureComponent<CategoryProps> {
         this.props.squareClickedCallback(this.props.categoryIndex, row);
     }
 
-    static parseCommentary(text: string | undefined, air_year: string): string | undefined {
+    static parseCommentary(text: string | undefined, air_year: number): string | undefined {
         text = text || '';
         if (text.length > 0) {
             text += ' ';
@@ -91,13 +91,14 @@ interface BoardProps {
     isControllingPlayer: boolean,
     activity: Activity,
     playerScore: number,
-    squareClickedCallback: (location: ServerData.BoardLocation) => void,
-    dailyDoubleSubmitCallback: (wager: number) => void,
 }
 interface BoardState {
     dailyDoubleWager: number,
 }
 export class Board extends React.PureComponent<BoardProps, BoardState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
+
     constructor(props: BoardProps) {
         super(props);
 
@@ -111,7 +112,16 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
     }
 
     handleSquareClicked(category: number, row: number) {
-        this.props.squareClickedCallback({ row, category });
+        this.context.withSession((session, argument) => {
+            argument['category'] = category.toString();
+            argument['row'] = row.toString();
+
+            session.call('jpdy.select_square', [], argument).then(() => {
+                console.log('select square call succeededd!');
+            }, (error) => {
+                handleError('select square call failed', error, false);
+            });
+        });
     }
 
     handleDailyDoubleWagerChange(e: ChangeEvent<HTMLInputElement>) {
@@ -121,7 +131,17 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
     }
 
     handleSubmitDailyDoubleWager() {
-        this.props.dailyDoubleSubmitCallback(this.state.dailyDoubleWager);
+        this.context.withSession((session, argument) => {
+            argument['wager'] = this.state.dailyDoubleWager.toString();
+
+            session.call('jpdy.submit_wager', [], argument).then(() => {
+                console.log('submit wager call succeeded!');
+                this.context.fireEvent(EventNames.StartTimer);
+            }, (error) => {
+                handleError('submit wager call failed', error, false);
+            });
+        });
+
         this.setState({
             dailyDoubleWager: 0,
         });

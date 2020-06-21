@@ -11,6 +11,8 @@ const LOBBY_CHANNEL = "jpdy.chan.lobby";
 
 interface LobbyState {
     openGames: ServerData.OpenGame[] | null,
+    minYear: number | null,
+    maxYear: number | null,
     selectedGame: string | null,
     avatarUrl: string | null,
 }
@@ -19,12 +21,15 @@ export interface LobbyProps {
     session: autobahn.Session,
     makeGameCallback: (name: string, avatar: string) => void,
     joinGameCallback: (name: string, avatar: string, gameId: string) => void,
+    gotGlobalMetadataCallback: (minCategoryYear: number, maxCategoryYear: number) => void,
 }
 
 export class Lobby extends React.Component<LobbyProps, LobbyState> {
     state: LobbyState = {
         openGames: null,
         selectedGame: null,
+        minYear: null,
+        maxYear: null,
         avatarUrl: null,
     };
 
@@ -54,6 +59,7 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
             this.setState({
                 openGames: kwargs['games'],
             });
+            this.props.gotGlobalMetadataCallback(kwargs['min_year'], kwargs['max_year']);
         }).then((subscription) => {
             this.subscription = subscription;
         }, (error: any) => {

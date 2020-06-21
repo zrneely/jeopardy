@@ -1,4 +1,6 @@
-use std::{borrow::Cow, collections::HashMap, env, fmt, path::PathBuf, time::Duration};
+use std::{
+    borrow::Cow, collections::HashMap, convert::TryInto, env, fmt, path::PathBuf, time::Duration,
+};
 
 use chrono::Utc;
 use futures::lock::Mutex;
@@ -164,6 +166,16 @@ impl JeopardyState {
 
         let mut result = WampDict::new();
         result.insert("games".to_string(), Arg::List(games));
+
+        result.insert(
+            "min_year".to_string(),
+            Arg::Integer(JEOPARDY_DATA.get().unwrap().min_year.try_into().unwrap()),
+        );
+        result.insert(
+            "max_year".to_string(),
+            Arg::Integer(JEOPARDY_DATA.get().unwrap().max_year.try_into().unwrap()),
+        );
+
         Ok(result)
     }
 
@@ -223,10 +235,12 @@ async fn main() {
     let mut jeopardy_data = Default::default();
     let time_taken = chrono::Duration::span(|| jeopardy_data = data::load(DATABASE_PATH).unwrap());
     info!(
-        "Loaded {} categories and {} final jeopardy questions in {} ms",
+        "Loaded {} categories and {} final jeopardy questions in {} ms (min year: {}, max year: {})",
         jeopardy_data.categories.len(),
         jeopardy_data.final_jeopardy_questions.len(),
-        time_taken.num_milliseconds()
+        time_taken.num_milliseconds(),
+        jeopardy_data.min_year,
+        jeopardy_data.max_year,
     );
     JEOPARDY_DATA.set(jeopardy_data).unwrap();
 

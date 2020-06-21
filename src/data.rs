@@ -10,7 +10,7 @@ struct Row {
     row_id: u64,
     game_id: u64,
     air_date: String,
-    air_year: String,
+    air_year: u16,
     r#type: RowType,
     cat_id: String,
     q_id: String,
@@ -56,13 +56,15 @@ pub struct FinalJeopardyQuestion {
     pub category: String,
     pub clue: Clue,
     pub answer: String,
-    pub air_year: String,
+    pub air_year: u16,
 }
 
 #[derive(Debug, Default)]
 pub struct JeopardyData {
     pub categories: Vec<Category>,
     pub final_jeopardy_questions: Vec<FinalJeopardyQuestion>,
+    pub min_year: u16,
+    pub max_year: u16,
 }
 
 pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
@@ -72,6 +74,8 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
     let mut jeopardy_data = JeopardyData {
         categories: Vec::new(),
         final_jeopardy_questions: Vec::new(),
+        min_year: u16::MAX,
+        max_year: u16::MIN,
     };
 
     let mut occurrences = [0usize; 5];
@@ -90,9 +94,16 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
             }
         }
 
+        if group[0].air_year > jeopardy_data.max_year {
+            jeopardy_data.max_year = group[0].air_year;
+        }
+        if group[0].air_year < jeopardy_data.min_year {
+            jeopardy_data.min_year = group[0].air_year;
+        }
+
         jeopardy_data.categories.push(Category {
             title: group[0].category.clone(),
-            air_year: group[0].air_year.clone(),
+            air_year: group[0].air_year,
             commentary: if group[0].category_comm.is_empty() {
                 None
             } else {
