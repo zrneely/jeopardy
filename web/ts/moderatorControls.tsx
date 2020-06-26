@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactModal from 'react-modal';
-import { Activity, handleError, ServerData, JeopardyContext, EventNames } from './common'
+import { Activity, handleError, ServerData, JeopardyContext, EventNames } from './common';
 import { TIMER_DELAY, TIMER_STEPS, Timer } from './timer';
 
 enum BoardType {
@@ -54,10 +54,6 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         this.handleSubmitNewGameModal = this.handleSubmitNewGameModal.bind(this);
         this.handleCloseNewGameModal = this.handleCloseNewGameModal.bind(this);
         this.handleBoardTypeChanged = this.handleBoardTypeChanged.bind(this);
-
-        this.handleEvalCorrectClicked = this.handleEvalCorrectClicked.bind(this);
-        this.handleEvalIncorrectClicked = this.handleEvalIncorrectClicked.bind(this);
-        this.handleEvalSkipClicked = this.handleEvalSkipClicked.bind(this);
     }
 
     componentDidMount() {
@@ -232,28 +228,50 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         });
     }
 
-    handleEvalCorrectClicked() {
-        if (this.props.activity === Activity.EnableBuzzer) {
-            this.enableBuzzerClicked();
-        } else {
-            this.evalButtonClicked(ServerData.AnswerType.Correct);
-        }
+    evalButtonClickedFJ(answer: ServerData.AnswerType, playerId: string) {
+        this.context.withSession((session, argument) => {
+            argument['answer'] = answer;
+            argument['target'] = playerId;
+
+            session.call('jpdy.final_jeopardy.evaluate_answer', [], argument).then(() => {
+                console.log('FJ answer call succeeded!');
+            }, (error) => {
+                handleError('FJ answer call failed', error, false);
+            });
+        });
     }
 
-    handleEvalIncorrectClicked() {
-        if (this.props.activity === Activity.EnableBuzzer) {
-            this.enableBuzzerClicked();
-        } else {
-            this.evalButtonClicked(ServerData.AnswerType.Incorrect);
-        }
+    revealFJInfoClicked(playerId: string, infoType: ServerData.FinalJeopardyInfoType) {
+        this.context.withSession((session, argument) => {
+            argument['target'] = playerId;
+            argument['info_type'] = infoType;
+
+            session.call('jpdy.final_jeopardy.reveal_info', [], argument).then(() => {
+                console.log('reveal FJ info call succeeded!');
+            }, (error) => {
+                handleError('reveal FJ answer call failed', error, false);
+            });
+        });
     }
 
-    handleEvalSkipClicked() {
-        if (this.props.activity === Activity.EnableBuzzer) {
-            this.enableBuzzerClicked();
-        } else {
-            this.evalButtonClicked(ServerData.AnswerType.Skip);
-        }
+    lockAnswersClicked() {
+        this.context.withSession((session, argument) => {
+            session.call('jpdy.final_jeopardy.lock_answers', [], argument).then(() => {
+                console.log('lock answers call succeeded!');
+            }, (error) => {
+                handleError('lock answers call failed', error, false);
+            })
+        });
+    }
+
+    revealQuestionClicked() {
+        this.context.withSession((session, argument) => {
+            session.call('jpdy.final_jeopardy.reveal_question', [], argument).then(() => {
+                console.log('reveal question call succeeded!');
+            }, (error) => {
+                handleError('reveal question call failed', error, false);
+            })
+        });
     }
 
     startTimer() {
@@ -276,14 +294,17 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
             string: 'Correct',
             className: 'eval-button-correct',
             enabled: false,
+            handler: () => { this.evalButtonClicked(ServerData.AnswerType.Correct); },
         }, {
             string: 'Incorrect',
             className: 'eval-button-incorrect',
             enabled: false,
+            handler: () => { this.evalButtonClicked(ServerData.AnswerType.Incorrect); },
         }, {
             string: 'Skip',
             className: 'eval-button-skip',
             enabled: false,
+            handler: () => { this.evalButtonClicked(ServerData.AnswerType.Skip); },
         }];
 
         switch (this.props.activity) {
@@ -304,6 +325,9 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                     button.className = 'eval-button-enable-buzzer';
                     button.string = 'Enable Buzzer';
                     button.enabled = true;
+                    button.handler = () => {
+                        this.enableBuzzerClicked();
+                    };
                 }
 
                 activityString = 'Read the question, then enable the buzzer.';
@@ -336,16 +360,44 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                     if (this.props.finalJeopardyAnswersLocked) {
                         activityString = 'Evaluate the players\' answers.';
 
-                        if (this.props.finalJeopardySelectedPlayerId !== null) {
+                        if (
+                            this.props.finalJeopardySelectedPlayerId !== null &&
+                            this.props.players[this.props.finalJeopardySelectedPlayerId] !== undefined
+                        ) {
                             const player = this.props.players[this.props.finalJeopardySelectedPlayerId];
 
                             if (player.final_jeopardy_info.answer_revealed) {
                                 for (let button of buttons) {
                                     button.enabled = true;
                                 }
+                                buttons[0].handler = () => {
+                                    this.evalButtonClickedFJ(
+                                        ServerData.AnswerType.Correct,
+                                        this.props.finalJeopardySelectedPlayerId!);
+                                };
+                                buttons[1].handler = () => {
+                                    this.evalButtonClickedFJ(
+                                        ServerData.AnswerType.Incorrect,
+                                        this.props.finalJeopardySelectedPlayerId!);
+                                };
+                                buttons[2].handler = () => {
+                                    this.evalButtonClickedFJ(
+                                        ServerData.AnswerType.Skip,
+                                        this.props.finalJeopardySelectedPlayerId!);
+                                };
                             } else {
                                 buttons[0].string = 'Reveal Wager';
+                                buttons[0].handler = () => {
+                                    this.revealFJInfoClicked(
+                                        this.props.finalJeopardySelectedPlayerId!,
+                                        ServerData.FinalJeopardyInfoType.Wager);
+                                };
                                 buttons[1].string = 'Reveal Answer';
+                                buttons[1].handler = () => {
+                                    this.revealFJInfoClicked(
+                                        this.props.finalJeopardySelectedPlayerId!,
+                                        ServerData.FinalJeopardyInfoType.Answer);
+                                };
                                 buttons[2].string = '-';
                                 buttons[2].enabled = false;
 
@@ -371,6 +423,9 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                             button.string = 'Lock Answers';
                             button.enabled = true;
                             button.className = 'eval-button-lock-answers';
+                            button.handler = () => {
+                                this.lockAnswersClicked();
+                            };
                         }
                     }
                 } else {
@@ -380,6 +435,9 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                         button.string = 'Reveal Question';
                         button.enabled = true;
                         button.className = 'eval-button-reveal-question';
+                        button.handler = () => {
+                            this.revealQuestionClicked();
+                        };
                     }
                 }
                 break;
@@ -391,7 +449,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
             <div className="moderator-controls-inner">
                 <div className="moderator-controls-column">
                     <button
-                        onClick={this.handleEvalCorrectClicked}
+                        onClick={buttons[0].handler}
                         disabled={!buttons[0].enabled}
                         className={buttons[0].className}>
                         {buttons[0].string}
@@ -403,7 +461,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                 </div>
                 <div className="moderator-controls-column">
                     <button
-                        onClick={this.handleEvalIncorrectClicked}
+                        onClick={buttons[1].handler}
                         disabled={!buttons[1].enabled}
                         className={buttons[1].className}>
                         {buttons[1].string}
@@ -415,7 +473,7 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                 </div>
                 <div className="moderator-controls-column">
                     <button
-                        onClick={this.handleEvalSkipClicked}
+                        onClick={buttons[2].handler}
                         disabled={!buttons[2].enabled}
                         className={buttons[2].className}>
                         {buttons[2].string}

@@ -16,6 +16,7 @@ interface GameState {
     controllerId: string | null,
     activePlayerId: string | null,
     moderatorName: string | null,
+    finalJeopardyCategory: string | null,
     finalJeopardyQuestion: ServerData.Clue | null,
     finalJeopardyAnswersLocked: boolean,
     finalJeopardySelectedPlayerId: string | null,
@@ -38,6 +39,7 @@ export class Game extends React.Component<GameProps, GameState> {
         controllerId: null,
         activePlayerId: null,
         moderatorName: null,
+        finalJeopardyCategory: null,
         finalJeopardyQuestion: null,
         finalJeopardyAnswersLocked: false,
         finalJeopardySelectedPlayerId: null,
@@ -53,6 +55,7 @@ export class Game extends React.Component<GameProps, GameState> {
 
         this.leaveGameClicked = this.leaveGameClicked.bind(this);
         this.endGameClicked = this.endGameClicked.bind(this);
+        this.selectPlayerFinalJeopardy = this.selectPlayerFinalJeopardy.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -153,6 +156,17 @@ export class Game extends React.Component<GameProps, GameState> {
             this.props.gotGlobalMetadataCallback(update.min_year, update.max_year);
         }
 
+        let finalJeopardyCategory = null;
+        let finalJeopardyQuestion = null;
+        let finalJeopardyAnswersLocked = false;
+        if (update.state.type === 'FinalJeopardy') {
+            if (update.state.question !== undefined) {
+                finalJeopardyQuestion = update.state.question;
+            }
+            finalJeopardyCategory = update.state.category;
+            finalJeopardyAnswersLocked = update.state.answers_locked;
+        }
+
         this.setState({
             board: this.getBoard(update.state),
             currentActivity: this.getActivity(update.state, update.is_moderator),
@@ -161,6 +175,9 @@ export class Game extends React.Component<GameProps, GameState> {
             controllerId: this.getController(update.state),
             activePlayerId: this.getActivePlayer(update.state),
             moderatorName: update.moderator,
+            finalJeopardyCategory,
+            finalJeopardyQuestion,
+            finalJeopardyAnswersLocked,
         });
     }
 
@@ -194,6 +211,14 @@ export class Game extends React.Component<GameProps, GameState> {
                 handleError('end game call failed', error, true);
             });
         });
+    }
+
+    selectPlayerFinalJeopardy(playerId: string) {
+        if (this.state.isModerator) {
+            this.setState({
+                finalJeopardySelectedPlayerId: playerId,
+            });
+        }
     }
 
     componentDidMount() {
@@ -287,8 +312,11 @@ export class Game extends React.Component<GameProps, GameState> {
             board = <FinalJeopardy
                 isModerator={this.state.isModerator}
                 players={this.state.players}
+                categoryName={this.state.finalJeopardyCategory || 'Unknown Category'}
                 question={this.state.finalJeopardyQuestion}
-                answersLocked={this.state.finalJeopardyAnswersLocked} />;
+                answersLocked={this.state.finalJeopardyAnswersLocked}
+                selectedPlayerId={this.state.finalJeopardySelectedPlayerId}
+                selectPlayer={this.selectPlayerFinalJeopardy} />;
         }
 
         let controls;

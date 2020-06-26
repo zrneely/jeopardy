@@ -155,6 +155,11 @@ export namespace ServerData {
         max_year: number,
     }
 
+    export enum FinalJeopardyInfoType {
+        Wager = 'Wager',
+        Answer = 'Answer',
+    }
+
     export enum SquareState {
         Normal = 'Normal',
         DailyDoubleRevealed = 'DailyDoubleRevealed',

@@ -708,6 +708,9 @@ impl Game {
             question_revealed: false,
             answers_locked: false,
         };
+        self.players.iter_mut().for_each(|(_, player)| {
+            player.final_jeopardy_info = Default::default();
+        });
 
         Ok(())
     }
