@@ -43,3 +43,31 @@ div.player-controls {
 .buzz-button-throttled {
     cursor: not-allowed !important;
 }
+
+.final-jeopardy-player-controls {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    margin: 5px;
+    justify-content: center;
+    align-items: stretch;
+}
+
+.final-jeopardy-control-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    padding: 10px;
+
+    button {
+        flex: 1;
+        align-self: stretch;
+    }
+
+    input {
+        margin-left: 5px;
+        flex: 5;
+    }
+}

@@ -882,6 +882,9 @@ impl Game {
                 ..
             } => {
                 if let Some(ref mut player) = self.players.get_mut(caller_id) {
+                    if wager < 0 || wager > player.score {
+                        return Err(Error::FinalJeopardyWagerOutOfRange);
+                    }
                     player.final_jeopardy_info.wager = Some(wager);
                 }
             }

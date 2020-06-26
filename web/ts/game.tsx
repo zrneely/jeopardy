@@ -350,7 +350,10 @@ export class Game extends React.Component<GameProps, GameState> {
                 controllingPlayer={controllerName}
                 activePlayer={activeName}
                 seed={this.state.board.seed}
-                isBoardLoaded={this.state.board.id !== -1} />;
+                isBoardLoaded={this.state.board.id !== -1}
+                playerScore={playerScore}
+                finalJeopardyAnswersLocked={this.state.finalJeopardyAnswersLocked}
+                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestionRevealed} />;
         }
 
         return <div className="game">

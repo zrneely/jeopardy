@@ -10,6 +10,9 @@ interface ControlsProps {
     activePlayer: string | null, // name, not ID
     seed: string | null,
     isBoardLoaded: boolean,
+    playerScore: number,
+    finalJeopardyQuestionRevealed: boolean,
+    finalJeopardyAnswersLocked: boolean,
 }
 
 interface PlayerControlsState {
@@ -28,11 +31,16 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
     startTimerId = -1;
     stopTimerId = -1;
 
+    fjWagerInput = React.createRef<HTMLInputElement>();
+    fjAnswerInput = React.createRef<HTMLInputElement>();
+
     constructor(props: ControlsProps) {
         super(props);
 
         this.handleBuzzClicked = this.handleBuzzClicked.bind(this);
         this.handleTimerFired = this.handleTimerFired.bind(this);
+        this.handleSubmitWagerClicked = this.handleSubmitWagerClicked.bind(this);
+        this.handleSubmitAnswerClicked = this.handleSubmitAnswerClicked.bind(this);
     }
 
     componentDidMount() {
@@ -92,6 +100,38 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
         }
     }
 
+    handleSubmitWagerClicked() {
+        if (this.fjWagerInput.current !== null) {
+            const wager = this.fjWagerInput.current.valueAsNumber;
+
+            this.context.withSession((session, argument) => {
+                argument['wager'] = wager.toString();
+
+                session.call('jpdy.submit_wager', [], argument).then(() => {
+                    console.log('submit fj wager call succeeded!');
+                }, (error) => {
+                    handleError('submit final jeopardy wager call failed', error, false);
+                });
+            });
+        }
+    }
+
+    handleSubmitAnswerClicked() {
+        if (this.fjAnswerInput.current !== null) {
+            const answer = this.fjAnswerInput.current.value;
+
+            this.context.withSession((session, argument) => {
+                argument['answer'] = answer;
+
+                session.call('jpdy.submit_final_jeopardy_answer', [], argument).then(() => {
+                    console.log('submit fj answer call succeeded!');
+                }, (error) => {
+                    handleError('submit final jeopardy answer call failed', error, false);
+                });
+            });
+        }
+    }
+
     startTimer() {
         this.setState({
             timerTimeRemaining: TIMER_STEPS,
@@ -105,7 +145,37 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
         });
     }
 
-    render() {
+    renderFinalJeopardy() {
+        const answerDisabled = this.props.finalJeopardyAnswersLocked || !this.props.finalJeopardyQuestionRevealed;
+
+        return <div className='final-jeopardy-player-controls'>
+            <div className='final-jeopardy-control-row'>
+                Wager:
+                <input
+                    type='number'
+                    min={0}
+                    max={this.props.playerScore}
+                    defaultValue={0}
+                    ref={this.fjWagerInput}
+                    disabled={this.props.finalJeopardyQuestionRevealed} />
+                <button
+                    disabled={this.props.finalJeopardyQuestionRevealed}
+                    onClick={this.handleSubmitWagerClicked}>Submit Wager</button>
+            </div>
+            <div className='final-jeopardy-control-row'>
+                Answer:
+                <input
+                    type='text'
+                    ref={this.fjAnswerInput}
+                    disabled={answerDisabled} />
+                <button
+                    disabled={answerDisabled}
+                    onClick={this.handleSubmitAnswerClicked}>Submit Answer</button>
+            </div>
+        </div>;
+    }
+
+    renderNormal() {
         let className = [];
         if (this.state.buzzerThrottled) {
             className.push('buzz-button-throttled');
@@ -116,7 +186,7 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
             className.push('buzz-button-enabled');
         }
 
-        return <div className="player-controls">
+        return <div className='player-controls'>
             <Timer timeRemaining={this.state.timerTimeRemaining} />
             <button
                 onClick={this.handleBuzzClicked}
@@ -124,5 +194,13 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
                 BUZZ
             </button>
         </div>;
+    }
+
+    render() {
+        if (this.props.activity === Activity.FinalJeopardy) {
+            return this.renderFinalJeopardy();
+        } else {
+            return this.renderNormal();
+        }
     }
 }

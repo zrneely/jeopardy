@@ -14,6 +14,7 @@ pub(crate) enum Error {
     InvalidStateForOperation,
     InvalidSquareStateTransition,
     DailyDoubleWagerOutOfRange,
+    FinalJeopardyWagerOutOfRange,
     NoSuchPlayer,
     NotAllowed,
     InvalidSquare,
@@ -56,7 +57,9 @@ impl From<Error> for WampError {
                 BadArgument => "jpdy.bad_argument",
                 InvalidStateForOperation => "jpdy.invalid_game_state",
                 InvalidSquareStateTransition => "jpdy.invalid_square_state_transition",
-                DailyDoubleWagerOutOfRange => "jpdy.wager_out_of_range",
+                DailyDoubleWagerOutOfRange | Error::FinalJeopardyWagerOutOfRange => {
+                    "jpdy.wager_out_of_range"
+                }
                 NoSuchPlayer => "jpdy.no_such_player",
                 NotAllowed => "jpdy.not_allowed",
                 InvalidSquare => "jpdy.invalid_square",
