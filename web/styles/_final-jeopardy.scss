@@ -21,7 +21,14 @@ div.final-jeopardy {
     display: flex;
     text-align: center;
     justify-content: center;
-    padding: 10px;
+    padding: 5px;
+}
+
+.final-jeopardy-answer {
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    padding: 5px;
 }
 
 .final-jeopardy-player-display {

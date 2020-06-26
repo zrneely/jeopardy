@@ -18,6 +18,8 @@ interface GameState {
     moderatorName: string | null,
     finalJeopardyCategory: string | null,
     finalJeopardyQuestion: ServerData.Clue | null,
+    finalJeopardyQuestionRevealed: boolean,
+    finalJeopardyAnswer: string | null,
     finalJeopardyAnswersLocked: boolean,
     finalJeopardySelectedPlayerId: string | null,
 }
@@ -41,6 +43,8 @@ export class Game extends React.Component<GameProps, GameState> {
         moderatorName: null,
         finalJeopardyCategory: null,
         finalJeopardyQuestion: null,
+        finalJeopardyQuestionRevealed: false,
+        finalJeopardyAnswer: null,
         finalJeopardyAnswersLocked: false,
         finalJeopardySelectedPlayerId: null,
     };
@@ -158,13 +162,19 @@ export class Game extends React.Component<GameProps, GameState> {
 
         let finalJeopardyCategory = null;
         let finalJeopardyQuestion = null;
+        let finalJeopardyQuestionRevealed = false;
+        let finalJeopardyAnswer = null;
         let finalJeopardyAnswersLocked = false;
         if (update.state.type === 'FinalJeopardy') {
             if (update.state.question !== undefined) {
                 finalJeopardyQuestion = update.state.question;
             }
+            if (update.state.answer !== undefined) {
+                finalJeopardyAnswer = update.state.answer;
+            }
             finalJeopardyCategory = update.state.category;
             finalJeopardyAnswersLocked = update.state.answers_locked;
+            finalJeopardyQuestionRevealed = update.state.question_revealed;
         }
 
         this.setState({
@@ -177,7 +187,9 @@ export class Game extends React.Component<GameProps, GameState> {
             moderatorName: update.moderator,
             finalJeopardyCategory,
             finalJeopardyQuestion,
+            finalJeopardyQuestionRevealed,
             finalJeopardyAnswersLocked,
+            finalJeopardyAnswer,
         });
     }
 
@@ -314,6 +326,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 players={this.state.players}
                 categoryName={this.state.finalJeopardyCategory || 'Unknown Category'}
                 question={this.state.finalJeopardyQuestion}
+                answer={this.state.finalJeopardyAnswer}
                 answersLocked={this.state.finalJeopardyAnswersLocked}
                 selectedPlayerId={this.state.finalJeopardySelectedPlayerId}
                 selectPlayer={this.selectPlayerFinalJeopardy} />;
@@ -328,7 +341,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 seed={this.state.board.seed}
                 players={this.state.players}
                 finalJeopardyAnswersLocked={this.state.finalJeopardyAnswersLocked}
-                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestion !== null}
+                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestionRevealed}
                 finalJeopardySelectedPlayerId={this.state.finalJeopardySelectedPlayerId}
                 isBoardLoaded={this.state.board.id !== -1} />;
         } else {

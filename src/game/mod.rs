@@ -177,6 +177,7 @@ enum GameState {
     FinalJeopardy {
         category_name: String,
         question: Clue,
+        answer: String,
         question_revealed: bool,
         answers_locked: bool,
     },
@@ -304,15 +305,21 @@ impl GameState {
             GameState::FinalJeopardy {
                 category_name,
                 question,
+                answer,
                 question_revealed,
                 answers_locked,
             } => {
                 result.insert("type".into(), Arg::String("FinalJeopardy".into()));
                 result.insert("category".into(), Arg::String(category_name.clone()));
                 result.insert("answers_locked".into(), Arg::Bool(*answers_locked));
+                result.insert("question_revealed".into(), Arg::Bool(*question_revealed));
 
-                if *question_revealed {
+                if *question_revealed || for_moderator {
                     result.insert("question".into(), Arg::Dict(question.serialize()));
+                }
+
+                if for_moderator {
+                    result.insert("answer".into(), Arg::String(answer.clone()));
                 }
             }
         }
@@ -707,6 +714,7 @@ impl Game {
             question: question.clue,
             question_revealed: false,
             answers_locked: false,
+            answer: question.answer.clone(),
         };
         self.players.iter_mut().for_each(|(_, player)| {
             player.final_jeopardy_info = Default::default();

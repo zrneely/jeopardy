@@ -248,7 +248,9 @@ export namespace ServerData {
         type: 'FinalJeopardy',
         category: string,
         answers_locked: boolean,
+        question_revealed: boolean,
         question: Clue | undefined,
+        answer: string | undefined,
     }
 
     export type RemoteGameState =

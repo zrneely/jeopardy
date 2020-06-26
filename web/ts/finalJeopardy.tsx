@@ -116,6 +116,7 @@ interface FinalJeopardyProps {
     isModerator: boolean,
     categoryName: string,
     question: ServerData.Clue | null,
+    answer: string | null,
     answersLocked: boolean,
     selectedPlayerId: string | null,
     selectPlayer: (playerId: string) => void,
@@ -143,13 +144,26 @@ export class FinalJeopardy extends React.PureComponent<FinalJeopardyProps, Final
     }
 
     render() {
+        let question;
+        if (this.props.question !== null) {
+            question = <div className='final-jeopardy-question'>
+                {this.props.question.text}
+            </div>;
+        }
+
+        let answer;
+        if (this.props.answer !== null) {
+            answer = <div className='final-jeopardy-answer'>
+                {this.props.answer}
+            </div>;
+        }
+
         return <div className='final-jeopardy'>
             <div className='final-jeopardy-category'>
                 {this.props.categoryName}
             </div>
-            <div className='final-jeopardy-question'>
-                {this.props.question?.text}
-            </div>
+            {question}
+            {answer}
             <PlayerDisplay
                 players={this.props.players}
                 selectedPlayerId={this.props.selectedPlayerId}
