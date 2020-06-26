@@ -16,12 +16,16 @@ interface GameState {
     controllerId: string | null,
     activePlayerId: string | null,
     moderatorName: string | null,
+
+    // Final Jeopardy stuff
     finalJeopardyCategory: string | null,
     finalJeopardyQuestion: ServerData.Clue | null,
     finalJeopardyQuestionRevealed: boolean,
     finalJeopardyAnswer: string | null,
     finalJeopardyAnswersLocked: boolean,
     finalJeopardySelectedPlayerId: string | null,
+    lastSubmittedFJAnswer: string | null,
+    lastSubmittedFJWager: number | null,
 }
 
 export interface GameProps {
@@ -47,6 +51,8 @@ export class Game extends React.Component<GameProps, GameState> {
         finalJeopardyAnswer: null,
         finalJeopardyAnswersLocked: false,
         finalJeopardySelectedPlayerId: null,
+        lastSubmittedFJAnswer: null,
+        lastSubmittedFJWager: null,
     };
 
     private gameUpdateSubscription: autobahn.Subscription | null = null;
@@ -60,6 +66,8 @@ export class Game extends React.Component<GameProps, GameState> {
         this.leaveGameClicked = this.leaveGameClicked.bind(this);
         this.endGameClicked = this.endGameClicked.bind(this);
         this.selectPlayerFinalJeopardy = this.selectPlayerFinalJeopardy.bind(this);
+        this.finalJeopardyAnswerSubmitted = this.finalJeopardyAnswerSubmitted.bind(this);
+        this.finalJeopardyWagerSubmitted = this.finalJeopardyWagerSubmitted.bind(this);
     }
 
     // Creates the fake board used for rendering when there's no board
@@ -233,6 +241,18 @@ export class Game extends React.Component<GameProps, GameState> {
         }
     }
 
+    finalJeopardyWagerSubmitted(wager: number) {
+        this.setState({
+            lastSubmittedFJWager: wager,
+        });
+    }
+
+    finalJeopardyAnswerSubmitted(answer: string) {
+        this.setState({
+            lastSubmittedFJAnswer: answer,
+        });
+    }
+
     componentDidMount() {
         this.context.withSession((session, argument) => {
             let initialState = session.call<autobahn.Result>('jpdy.game_state', [], argument);
@@ -265,24 +285,38 @@ export class Game extends React.Component<GameProps, GameState> {
     componentDidUpdate(_: any, prevState: GameState) {
         // If we're a player and the moderator evaluated an answer,
         // stop the timer.
-        if ((prevState.currentActivity === Activity.WaitForEval) &&
-            (this.state.currentActivity !== Activity.WaitForEval)) {
-
+        if (
+            (prevState.currentActivity === Activity.WaitForEval) &&
+            (this.state.currentActivity !== Activity.WaitForEval)
+        ) {
             this.context.fireEvent(EventNames.StopTimer);
         }
 
-        if ((prevState.currentActivity === Activity.EvaluateAnswer) &&
-            (this.state.currentActivity === Activity.Moderate)) {
-
+        if (
+            (prevState.currentActivity === Activity.EvaluateAnswer) &&
+            (this.state.currentActivity === Activity.Moderate)
+        ) {
             this.context.fireEvent(EventNames.StopTimer);
         }
 
         // If we're a moderator and the player submitted their daily double
         // wager, start the timer.
-        if ((prevState.currentActivity === Activity.WaitForDailyDoubleWager) &&
-            (this.state.currentActivity === Activity.EvaluateAnswer)) {
-
+        if (
+            (prevState.currentActivity === Activity.WaitForDailyDoubleWager) &&
+            (this.state.currentActivity === Activity.EvaluateAnswer)
+        ) {
             this.context.fireEvent(EventNames.StartTimer);
+        }
+
+        // If we changed into final jeopardy, clear the final jeopardy info
+        if (
+            (prevState.currentActivity !== Activity.FinalJeopardy) &&
+            (this.state.currentActivity === Activity.FinalJeopardy)
+        ) {
+            this.setState({
+                lastSubmittedFJAnswer: null,
+                lastSubmittedFJWager: null,
+            });
         }
     }
 
@@ -329,7 +363,9 @@ export class Game extends React.Component<GameProps, GameState> {
                 answer={this.state.finalJeopardyAnswer}
                 answersLocked={this.state.finalJeopardyAnswersLocked}
                 selectedPlayerId={this.state.finalJeopardySelectedPlayerId}
-                selectPlayer={this.selectPlayerFinalJeopardy} />;
+                selectPlayer={this.selectPlayerFinalJeopardy}
+                selfAnswerOverride={this.state.lastSubmittedFJAnswer}
+                selfWagerOverride={this.state.lastSubmittedFJWager} />;
         }
 
         let controls;
@@ -353,7 +389,9 @@ export class Game extends React.Component<GameProps, GameState> {
                 isBoardLoaded={this.state.board.id !== -1}
                 playerScore={playerScore}
                 finalJeopardyAnswersLocked={this.state.finalJeopardyAnswersLocked}
-                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestionRevealed} />;
+                finalJeopardyQuestionRevealed={this.state.finalJeopardyQuestionRevealed}
+                wagerSubmittedCallback={this.finalJeopardyWagerSubmitted}
+                answerSubmittedCallback={this.finalJeopardyAnswerSubmitted} />;
         }
 
         return <div className="game">

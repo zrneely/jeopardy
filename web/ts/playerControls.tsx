@@ -13,6 +13,8 @@ interface ControlsProps {
     playerScore: number,
     finalJeopardyQuestionRevealed: boolean,
     finalJeopardyAnswersLocked: boolean,
+    wagerSubmittedCallback: (wager: number) => void,
+    answerSubmittedCallback: (answer: string) => void,
 }
 
 interface PlayerControlsState {
@@ -109,6 +111,7 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
 
                 session.call('jpdy.submit_wager', [], argument).then(() => {
                     console.log('submit fj wager call succeeded!');
+                    this.props.wagerSubmittedCallback(wager);
                 }, (error) => {
                     handleError('submit final jeopardy wager call failed', error, false);
                 });
@@ -125,6 +128,7 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
 
                 session.call('jpdy.submit_final_jeopardy_answer', [], argument).then(() => {
                     console.log('submit fj answer call succeeded!');
+                    this.props.answerSubmittedCallback(answer);
                 }, (error) => {
                     handleError('submit final jeopardy answer call failed', error, false);
                 });

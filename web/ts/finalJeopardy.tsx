@@ -5,9 +5,14 @@ interface PlayerDisplayProps {
     players: { [playerId: string]: ServerData.Player },
     selectedPlayerId: string | null,
     playerSelected: (playerId: string) => void,
+    selfWagerOverride: number | null,
+    selfAnswerOverride: string | null,
 }
 
 class PlayerDisplay extends React.PureComponent<PlayerDisplayProps, {}> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
+
     constructor(props: PlayerDisplayProps) {
         super(props);
 
@@ -39,7 +44,11 @@ class PlayerDisplay extends React.PureComponent<PlayerDisplayProps, {}> {
 
             let answer;
             if (player.final_jeopardy_info.answer === undefined) {
-                answer = 'Answer: ???';
+                if (playerId === this.context.joinInfo?.playerId && this.props.selfAnswerOverride !== null) {
+                    answer = `Answer: ${this.props.selfAnswerOverride}`;
+                } else {
+                    answer = 'Answer: ???';
+                }
             } else if (player.final_jeopardy_info.answer === null) {
                 answer = 'No answer submitted';
             } else {
@@ -64,7 +73,11 @@ class PlayerDisplay extends React.PureComponent<PlayerDisplayProps, {}> {
 
             let wager;
             if (player.final_jeopardy_info.wager === undefined) {
-                wager = 'Wager: ???';
+                if (playerId === this.context.joinInfo?.playerId && this.props.selfWagerOverride !== null) {
+                    wager = `Wager: ${this.props.selfWagerOverride}`;
+                } else {
+                    wager = 'Wager: ???';
+                }
             } else if (player.final_jeopardy_info.wager === null) {
                 wager = 'No wager submitted';
             } else {
@@ -120,6 +133,8 @@ interface FinalJeopardyProps {
     answersLocked: boolean,
     selectedPlayerId: string | null,
     selectPlayer: (playerId: string) => void,
+    selfWagerOverride: number | null,
+    selfAnswerOverride: string | null,
 }
 
 interface FinalJeopardyState { }
@@ -167,7 +182,9 @@ export class FinalJeopardy extends React.PureComponent<FinalJeopardyProps, Final
             <PlayerDisplay
                 players={this.props.players}
                 selectedPlayerId={this.props.selectedPlayerId}
-                playerSelected={this.playerSelected} />
+                playerSelected={this.playerSelected}
+                selfWagerOverride={this.props.selfWagerOverride}
+                selfAnswerOverride={this.props.selfAnswerOverride} />
         </div>;
     }
 }
