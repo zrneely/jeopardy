@@ -247,6 +247,7 @@ export namespace ServerData {
     export interface FinalJeopardy {
         type: 'FinalJeopardy',
         category: string,
+        air_year: number,
         answers_locked: boolean,
         question_revealed: boolean,
         question: Clue | undefined,

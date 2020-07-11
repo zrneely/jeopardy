@@ -10,7 +10,7 @@ struct Row {
     row_id: u64,
     game_id: u64,
     air_date: String,
-    air_year: String,
+    air_year: u16,
     r#type: RowType,
     cat_id: String,
     q_id: String,
@@ -56,6 +56,7 @@ pub struct FinalJeopardyQuestion {
     pub category: String,
     pub clue: Clue,
     pub answer: String,
+    pub air_year: u16,
 }
 
 #[derive(Debug, Default)]
@@ -80,7 +81,7 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
     let mut occurrences = [0usize; 5];
 
     let (final_jeopardy, normal): (Vec<Row>, Vec<Row>) = results
-        .filter_map(|row| row.ok())
+        .filter_map(|row| Some(row.unwrap()))
         .partition(|row| matches!(row.r#type, RowType::FinalJeopardy));
 
     for (_key, group) in normal.iter().group_by(|row| row.cat_id.clone()).into_iter() {
@@ -93,7 +94,7 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
             }
         }
 
-        let air_year = group[0].air_year.parse().unwrap();
+        let air_year = group[0].air_year;
         if air_year > jeopardy_data.max_year {
             jeopardy_data.max_year = air_year;
         }
@@ -126,6 +127,7 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
             .final_jeopardy_questions
             .push(FinalJeopardyQuestion {
                 category: row.category,
+                air_year: row.air_year,
                 answer,
                 clue,
             });

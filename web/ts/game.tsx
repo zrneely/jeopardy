@@ -19,6 +19,7 @@ interface GameState {
 
     // Final Jeopardy stuff
     finalJeopardyCategory: string | null,
+    finalJeopardyAirYear: number | null,
     finalJeopardyQuestion: ServerData.Clue | null,
     finalJeopardyQuestionRevealed: boolean,
     finalJeopardyAnswer: string | null,
@@ -46,6 +47,7 @@ export class Game extends React.Component<GameProps, GameState> {
         activePlayerId: null,
         moderatorName: null,
         finalJeopardyCategory: null,
+        finalJeopardyAirYear: null,
         finalJeopardyQuestion: null,
         finalJeopardyQuestionRevealed: false,
         finalJeopardyAnswer: null,
@@ -169,6 +171,7 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let finalJeopardyCategory = null;
+        let finalJeopardyAirYear = null;
         let finalJeopardyQuestion = null;
         let finalJeopardyQuestionRevealed = false;
         let finalJeopardyAnswer = null;
@@ -181,6 +184,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 finalJeopardyAnswer = update.state.answer;
             }
             finalJeopardyCategory = update.state.category;
+            finalJeopardyAirYear = update.state.air_year;
             finalJeopardyAnswersLocked = update.state.answers_locked;
             finalJeopardyQuestionRevealed = update.state.question_revealed;
         }
@@ -194,6 +198,7 @@ export class Game extends React.Component<GameProps, GameState> {
             activePlayerId: this.getActivePlayer(update.state),
             moderatorName: update.moderator,
             finalJeopardyCategory,
+            finalJeopardyAirYear,
             finalJeopardyQuestion,
             finalJeopardyQuestionRevealed,
             finalJeopardyAnswersLocked,
@@ -359,6 +364,7 @@ export class Game extends React.Component<GameProps, GameState> {
                 isModerator={this.state.isModerator}
                 players={this.state.players}
                 categoryName={this.state.finalJeopardyCategory || 'Unknown Category'}
+                airYear={this.state.finalJeopardyAirYear || -1}
                 question={this.state.finalJeopardyQuestion}
                 answer={this.state.finalJeopardyAnswer}
                 answersLocked={this.state.finalJeopardyAnswersLocked}

@@ -177,6 +177,7 @@ enum GameState {
     FinalJeopardy {
         category_name: String,
         question: Clue,
+        air_year: u16,
         answer: String,
         question_revealed: bool,
         answers_locked: bool,
@@ -305,12 +306,14 @@ impl GameState {
             GameState::FinalJeopardy {
                 category_name,
                 question,
+                air_year,
                 answer,
                 question_revealed,
                 answers_locked,
             } => {
                 result.insert("type".into(), Arg::String("FinalJeopardy".into()));
                 result.insert("category".into(), Arg::String(category_name.clone()));
+                result.insert("air_year".into(), Arg::Integer((*air_year).try_into().unwrap()));
                 result.insert("answers_locked".into(), Arg::Bool(*answers_locked));
                 result.insert("question_revealed".into(), Arg::Bool(*question_revealed));
 
@@ -711,6 +714,7 @@ impl Game {
         let question = self.get_random_final_jeopardy(&mut seed.to_rng());
         self.state = GameState::FinalJeopardy {
             category_name: question.category.clone(),
+            air_year: question.air_year,
             question: question.clue,
             question_revealed: false,
             answers_locked: false,

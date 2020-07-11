@@ -366,7 +366,10 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                         ) {
                             const player = this.props.players[this.props.finalJeopardySelectedPlayerId];
 
-                            if (player.final_jeopardy_info.answer_revealed) {
+                            if (
+                                player.final_jeopardy_info.answer_revealed &&
+                                player.final_jeopardy_info.wager_revealed
+                            ) {
                                 for (let button of buttons) {
                                     button.enabled = true;
                                 }
@@ -392,22 +395,18 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                                         this.props.finalJeopardySelectedPlayerId!,
                                         ServerData.FinalJeopardyInfoType.Wager);
                                 };
+                                buttons[0].enabled = !player.final_jeopardy_info.wager_revealed;
+
                                 buttons[1].string = 'Reveal Answer';
                                 buttons[1].handler = () => {
                                     this.revealFJInfoClicked(
                                         this.props.finalJeopardySelectedPlayerId!,
                                         ServerData.FinalJeopardyInfoType.Answer);
                                 };
+                                buttons[1].enabled = !player.final_jeopardy_info.answer_revealed;
+
                                 buttons[2].string = '-';
                                 buttons[2].enabled = false;
-
-                                if (player.final_jeopardy_info.wager_revealed) {
-                                    buttons[0].enabled = false;
-                                    buttons[1].enabled = true;
-                                } else {
-                                    buttons[0].enabled = true;
-                                    buttons[1].enabled = false;
-                                }
                             }
                         } else {
                             for (let button of buttons) {

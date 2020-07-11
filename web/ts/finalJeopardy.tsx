@@ -128,6 +128,7 @@ interface FinalJeopardyProps {
     players: { [playerId: string]: ServerData.Player },
     isModerator: boolean,
     categoryName: string,
+    airYear: number,
     question: ServerData.Clue | null,
     answer: string | null,
     answersLocked: boolean,
@@ -175,7 +176,7 @@ export class FinalJeopardy extends React.PureComponent<FinalJeopardyProps, Final
 
         return <div className='final-jeopardy'>
             <div className='final-jeopardy-category'>
-                {this.props.categoryName}
+                {this.props.categoryName} (Air Date: {this.props.airYear})
             </div>
             {question}
             {answer}
