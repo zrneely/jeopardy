@@ -1,5 +1,6 @@
-use std::path::Path;
+use std::{fs::File, path::Path};
 
+use flate2::read::GzDecoder;
 use itertools::Itertools;
 use serde::Deserialize;
 
@@ -67,8 +68,8 @@ pub struct JeopardyData {
     pub max_year: u16,
 }
 
-pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
-    let mut reader = csv::Reader::from_path(path)?;
+pub fn load<P: AsRef<Path>>(path: P) -> JeopardyData {
+    let mut reader = csv::Reader::from_reader(GzDecoder::new(File::open(path).unwrap()));
     let results = reader.deserialize::<Row>();
 
     let mut jeopardy_data = JeopardyData {
@@ -135,5 +136,5 @@ pub fn load<P: AsRef<Path>>(path: P) -> Result<JeopardyData, std::io::Error> {
 
     log::info!("Occurrences of Daily Doubles: {:?}", occurrences);
 
-    Ok(jeopardy_data)
+    jeopardy_data
 }

@@ -53,7 +53,7 @@ const GC_CLEANUP_THRESHOLD: Duration = Duration::from_secs(60 * 60 * 24);
 const ROUTER_PORT_ENV_NAME: &str = "JPDY_ROUTER_PORT";
 const WAMP_REALM: &str = "jpdy";
 const GAME_LOBBY_CHANNEL: &str = "jpdy.chan.lobby";
-const DATABASE_PATH: &str = "jeo_data_utf8.csv";
+const DATABASE_PATH: &str = "jeo_data_utf8.csv.gz";
 const MAX_AVATAR_SIZE: usize = 32 * 1024;
 
 /// A game's ID.
@@ -233,7 +233,7 @@ async fn main() {
     env_logger::init();
 
     let mut jeopardy_data = Default::default();
-    let time_taken = chrono::Duration::span(|| jeopardy_data = data::load(DATABASE_PATH).unwrap());
+    let time_taken = chrono::Duration::span(|| jeopardy_data = data::load(DATABASE_PATH));
     info!(
         "Loaded {} categories and {} final jeopardy questions in {} ms (min year: {}, max year: {})",
         jeopardy_data.categories.len(),
