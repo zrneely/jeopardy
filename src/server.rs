@@ -347,11 +347,15 @@ pub async fn new_board(
     } else {
         Seed::new_random()
     };
+    let min_year = get_str_parse(kwargs.get("min_year").ok_or(Error::BadArgument)?)?;
+    let max_year = get_str_parse(kwargs.get("max_year").ok_or(Error::BadArgument)?)?;
 
     trace!(
-        "new_board: multiplier: {}, daily doubles: {}, seed: {}",
+        "new_board: multiplier: {}, daily doubles: {}, min_year: {}, max_year: {}, seed: {}",
         multiplier,
         daily_doubles,
+        min_year,
+        max_year,
         seed
     );
 
@@ -371,7 +375,14 @@ pub async fn new_board(
             game.auth_and_get_player_type(&player_id, &auth),
             Some(PlayerType::Moderator)
         ) {
-            game.load_new_board(multiplier, daily_doubles, categories, seed)?;
+            game.load_new_board(
+                multiplier,
+                daily_doubles,
+                categories,
+                min_year,
+                max_year,
+                seed,
+            )?;
         } else {
             return Err(Error::NotAllowed.into());
         }
@@ -394,6 +405,8 @@ pub async fn start_final_jeopardy(
     } else {
         Seed::new_random()
     };
+    let min_year = get_str_parse(kwargs.get("min_year").ok_or(Error::BadArgument)?)?;
+    let max_year = get_str_parse(kwargs.get("max_year").ok_or(Error::BadArgument)?)?;
 
     {
         let games = STATE
@@ -411,7 +424,7 @@ pub async fn start_final_jeopardy(
             game.auth_and_get_player_type(&player_id, &auth),
             Some(PlayerType::Moderator)
         ) {
-            game.start_final_jeopardy(seed)?;
+            game.start_final_jeopardy(seed, min_year, max_year)?;
         } else {
             return Err(Error::NotAllowed.into());
         }

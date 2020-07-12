@@ -2,7 +2,10 @@ use std::{collections::HashMap, convert::TryInto};
 
 use chrono::{DateTime, Utc};
 use log::*;
-use rand::{seq::SliceRandom, Rng};
+use rand::{
+    seq::{IteratorRandom, SliceRandom},
+    Rng,
+};
 use uuid::Uuid;
 use wamp_async::{Arg, WampDict};
 
@@ -666,6 +669,8 @@ impl Game {
         multiplier: i64,
         daily_double_count: usize,
         categories: usize,
+        min_year: u16,
+        max_year: u16,
         seed: Seed,
     ) -> Result<(), Error> {
         self.next_board_id += 1;
@@ -674,6 +679,8 @@ impl Game {
                 multiplier,
                 daily_double_count,
                 categories,
+                min_year,
+                max_year,
                 self.next_board_id,
                 seed,
             )
@@ -710,8 +717,13 @@ impl Game {
         Ok(())
     }
 
-    pub(crate) fn start_final_jeopardy(&mut self, seed: Seed) -> Result<(), Error> {
-        let question = self.get_random_final_jeopardy(&mut seed.to_rng());
+    pub(crate) fn start_final_jeopardy(
+        &mut self,
+        seed: Seed,
+        min_year: u16,
+        max_year: u16,
+    ) -> Result<(), Error> {
+        let question = self.get_random_final_jeopardy(&mut seed.to_rng(), min_year, max_year);
         self.state = GameState::FinalJeopardy {
             category_name: question.category.clone(),
             air_year: question.air_year,
@@ -752,13 +764,15 @@ impl Game {
         multiplier: i64,
         daily_double_count: usize,
         category_count: usize,
+        min_year: u16,
+        max_year: u16,
         id: usize,
         seed: Seed,
     ) -> Option<Box<JeopardyBoard>> {
         let mut rng = seed.to_rng();
 
         let categories = (0..category_count)
-            .map(|_| self.get_random_category(&mut rng))
+            .map(|_| self.get_random_category(&mut rng, min_year, max_year))
             .collect();
 
         let mut board = Box::new(JeopardyBoard::new(categories, multiplier, id, seed));
@@ -772,21 +786,30 @@ impl Game {
         Some(board)
     }
 
-    fn get_random_category<R: Rng>(&self, rng: &mut R) -> Category {
+    fn get_random_category<R: Rng>(&self, rng: &mut R, min_year: u16, max_year: u16) -> Category {
         JEOPARDY_DATA
             .get()
             .unwrap()
             .categories
+            .iter()
+            .filter(|cat| cat.air_year >= min_year && cat.air_year <= max_year)
             .choose(rng)
             .unwrap()
             .clone()
     }
 
-    fn get_random_final_jeopardy<R: Rng>(&self, rng: &mut R) -> FinalJeopardyQuestion {
+    fn get_random_final_jeopardy<R: Rng>(
+        &self,
+        rng: &mut R,
+        min_year: u16,
+        max_year: u16,
+    ) -> FinalJeopardyQuestion {
         JEOPARDY_DATA
             .get()
             .unwrap()
             .final_jeopardy_questions
+            .iter()
+            .filter(|cat| cat.air_year >= min_year && cat.air_year <= max_year)
             .choose(rng)
             .unwrap()
             .clone()

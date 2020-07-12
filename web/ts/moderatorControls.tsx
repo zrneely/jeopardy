@@ -3,6 +3,8 @@ import ReactModal from 'react-modal';
 import { Activity, handleError, ServerData, JeopardyContext, EventNames } from './common';
 import { TIMER_DELAY, TIMER_STEPS, Timer } from './timer';
 
+const VERY_LARGE_YEAR: number = 65535;
+
 enum BoardType {
     Normal = 'N',
     DoubleJeopardy = 'DJ',
@@ -24,6 +26,8 @@ interface ModeratorControlsState {
     newGameModalOpen: boolean,
     selectedBoardType: BoardType,
     timerTimeRemaining: number,
+    minYearSelection: number,
+    maxYearSelection: number,
 }
 export class ModeratorControls extends React.Component<ControlsProps, ModeratorControlsState> {
     declare context: React.ContextType<typeof JeopardyContext>;
@@ -33,6 +37,8 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         newGameModalOpen: false,
         selectedBoardType: BoardType.Normal,
         timerTimeRemaining: 0,
+        minYearSelection: 0,
+        maxYearSelection: VERY_LARGE_YEAR,
     };
 
     newBoardSeedInputs = [
@@ -54,6 +60,8 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         this.handleSubmitNewGameModal = this.handleSubmitNewGameModal.bind(this);
         this.handleCloseNewGameModal = this.handleCloseNewGameModal.bind(this);
         this.handleBoardTypeChanged = this.handleBoardTypeChanged.bind(this);
+        this.handleMinYearSelectionChanged = this.handleMinYearSelectionChanged.bind(this);
+        this.handleMaxYearSelectionChanged = this.handleMaxYearSelectionChanged.bind(this);
     }
 
     componentDidMount() {
@@ -62,6 +70,11 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         });
         this.stopTimerId = this.context.listenEvent(EventNames.StopTimer, () => {
             this.stopTimer();
+        });
+
+        this.setState({
+            minYearSelection: this.context.minCategoryYear || 0,
+            maxYearSelection: this.context.maxCategoryYear || VERY_LARGE_YEAR,
         });
     }
 
@@ -98,6 +111,8 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
 
     startFinalJeopardy(seed: string | null) {
         this.context.withSession((session, argument) => {
+            argument['min_year'] = `${this.state.minYearSelection}`;
+            argument['max_year'] = `${this.state.maxYearSelection}`;
             if (seed !== null) {
                 argument['seed'] = seed;
             }
@@ -150,6 +165,8 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         this.context.withSession((session, argument) => {
             argument['multiplier'] = `${multiplier}`;
             argument['daily_doubles'] = `${dailyDoubles}`;
+            argument['min_year'] = `${this.state.minYearSelection}`;
+            argument['max_year'] = `${this.state.maxYearSelection}`;
             argument['categories'] = '6';
             if (seed !== null) {
                 argument['seed'] = seed;
@@ -176,7 +193,6 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                 boardType = BoardType.Normal;
                 if (this.newBoardDailyDoubleInput.current !== null) {
                     this.newBoardDailyDoubleInput.current.value = '1';
-                    this.newBoardDailyDoubleInput.current.disabled = false;
                 }
                 break;
             }
@@ -184,15 +200,11 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                 boardType = BoardType.DoubleJeopardy;
                 if (this.newBoardDailyDoubleInput.current !== null) {
                     this.newBoardDailyDoubleInput.current.value = '2';
-                    this.newBoardDailyDoubleInput.current.disabled = false;
                 }
                 break;
             }
             case BoardType.FinalJeopardy: {
                 boardType = BoardType.FinalJeopardy;
-                if (this.newBoardDailyDoubleInput.current !== null) {
-                    this.newBoardDailyDoubleInput.current.disabled = true;
-                }
                 break;
             }
             default: {
@@ -203,6 +215,30 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
         this.setState({
             selectedBoardType: boardType,
         });
+    }
+
+    handleMinYearSelectionChanged(e: React.ChangeEvent<HTMLInputElement>) {
+        const minYearSelection = e.target.valueAsNumber;
+        if (
+            (minYearSelection <= this.state.maxYearSelection) &&
+            ((this.context.minCategoryYear !== null) && (minYearSelection >= this.context.minCategoryYear))
+        ) {
+            this.setState({
+                minYearSelection,
+            });
+        }
+    }
+
+    handleMaxYearSelectionChanged(e: React.ChangeEvent<HTMLInputElement>) {
+        const maxYearSelection = e.target.valueAsNumber;
+        if (
+            (maxYearSelection >= this.state.minYearSelection) &&
+            ((this.context.maxCategoryYear !== null) && (maxYearSelection <= this.context.maxCategoryYear))
+        ) {
+            this.setState({
+                maxYearSelection: e.target.valueAsNumber,
+            });
+        }
     }
 
     enableBuzzerClicked() {
@@ -517,7 +553,8 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                                     type="number"
                                     min="0"
                                     max="30"
-                                    defaultValue={this.state.selectedBoardType == BoardType.Normal ? 1 : 2}
+                                    disabled={this.state.selectedBoardType === BoardType.FinalJeopardy}
+                                    defaultValue={this.state.selectedBoardType === BoardType.Normal ? 1 : 2}
                                     ref={this.newBoardDailyDoubleInput} />
                             </li>
                             <li className="option-label">
@@ -550,6 +587,24 @@ export class ModeratorControls extends React.Component<ControlsProps, ModeratorC
                                     onChange={this.handleBoardTypeChanged}
                                     checked={this.state.selectedBoardType == BoardType.FinalJeopardy} />
                                 <label htmlFor="board-type-final-jeopardy">Final Jeopardy</label>
+                            </li>
+                            <li className="option-label">
+                                Min Year (min: {this.context.minCategoryYear}) /
+                                Max Year (max: {this.context.maxCategoryYear}):
+                            </li>
+                            <li>
+                                <input
+                                    type="number"
+                                    min={this.context.minCategoryYear || 0}
+                                    max={this.state.maxYearSelection}
+                                    value={this.state.minYearSelection}
+                                    onChange={this.handleMinYearSelectionChanged} />
+                                <input
+                                    type="number"
+                                    min={this.state.minYearSelection}
+                                    max={this.context.maxCategoryYear || VERY_LARGE_YEAR}
+                                    value={this.state.maxYearSelection}
+                                    onChange={this.handleMaxYearSelectionChanged} />
                             </li>
                         </ul>
                     </form>
