@@ -43,6 +43,7 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
         this.handleTimerFired = this.handleTimerFired.bind(this);
         this.handleSubmitWagerClicked = this.handleSubmitWagerClicked.bind(this);
         this.handleSubmitAnswerClicked = this.handleSubmitAnswerClicked.bind(this);
+        this.handleKeyDown = this.handleKeyDown.bind(this);
     }
 
     componentDidMount() {
@@ -52,11 +53,13 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
         this.stopTimerId = this.context.listenEvent(EventNames.StopTimer, () => {
             this.stopTimer();
         });
+        document.addEventListener('keydown', this.handleKeyDown);
     }
 
     componentWillUnmount() {
         this.context.unlistenEvent(EventNames.StartTimer, this.startTimerId);
         this.context.unlistenEvent(EventNames.StopTimer, this.stopTimerId);
+        document.removeEventListener('keydown', this.handleKeyDown);
     }
 
     handleTimerFired() {
@@ -69,6 +72,12 @@ export class PlayerControls extends React.Component<ControlsProps, PlayerControl
             this.setState({
                 timerTimeRemaining: 0,
             });
+        }
+    }
+
+    handleKeyDown(e: KeyboardEvent) {
+        if (e.key === ' ') {
+            this.handleBuzzClicked();
         }
     }
 
