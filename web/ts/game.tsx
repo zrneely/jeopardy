@@ -211,16 +211,20 @@ export class Game extends React.Component<GameProps, GameState> {
             return;
         }
 
-        this.context.withSession((session, argument) => {
-            argument['target'] = this.context.joinInfo!.playerId;
+        if (this.context.joinInfo?.playerId !== null) {
+            this.context.withSession((session, argument) => {
+                argument['target'] = this.context.joinInfo!.playerId!;
 
-            session.call('jpdy.leave', [], argument).then(() => {
-                console.log('leave game call succeeded!');
-                this.props.leaveGameCallback();
-            }, (error) => {
-                handleError('leave game call failed', error, true);
+                session.call('jpdy.leave', [], argument).then(() => {
+                    console.log('leave game call succeeded!');
+                    this.props.leaveGameCallback();
+                }, (error) => {
+                    handleError('leave game call failed', error, true);
+                });
             });
-        });
+        } else {
+            this.props.leaveGameCallback();
+        }
     }
 
     endGameClicked() {
@@ -326,10 +330,8 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     render() {
-        let controllerName;
-        if (this.state.controllerId === null) {
-            controllerName = null;
-        } else {
+        let controllerName = null;
+        if (this.state.controllerId !== null && this.state.players.hasOwnProperty(this.state.controllerId)) {
             controllerName = this.state.players[this.state.controllerId].name;
         }
 
@@ -345,9 +347,13 @@ export class Game extends React.Component<GameProps, GameState> {
         if (this.state.isModerator && this.state.moderatorName !== null) {
             playerName = this.state.moderatorName;
         }
-        if (this.context.joinInfo !== null && this.state.players[this.context.joinInfo.playerId]) {
-            playerScore = +this.state.players[this.context.joinInfo.playerId].score;
-            playerName = this.state.players[this.context.joinInfo.playerId].name;
+        if (this.context.joinInfo !== null) {
+            if (this.context.joinInfo.playerId === null) {
+                playerName = 'Spectator';
+            } else if (this.state.players.hasOwnProperty(this.context.joinInfo.playerId)) {
+                playerScore = +this.state.players[this.context.joinInfo.playerId].score;
+                playerName = this.state.players[this.context.joinInfo.playerId].name;
+            }
         }
 
         let board;
@@ -375,7 +381,9 @@ export class Game extends React.Component<GameProps, GameState> {
         }
 
         let controls;
-        if (this.state.isModerator) {
+        if (this.context.joinInfo?.playerId === null) {
+            controls = null;
+        } else if (this.state.isModerator) {
             controls = <ModeratorControls
                 activity={this.state.currentActivity}
                 controllingPlayer={controllerName}

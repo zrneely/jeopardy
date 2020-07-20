@@ -151,6 +151,7 @@ impl JeopardyState {
                     "game_id" => game_id.to_string(),
                     "moderator" => game.get_moderator_name().into(),
                     "moderator_avatar" => game.get_moderator_avatar_url().into(),
+                    "channel" => game.player_state_channel.clone(),
                 };
                 let players = Arg::List(
                     game.get_player_names()

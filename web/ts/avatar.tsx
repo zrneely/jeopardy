@@ -25,6 +25,7 @@ enum Tool {
     Thin = 'Thin',
     Thicc = 'Thicc',
     Flood = 'Flood',
+    Clear = 'Clear',
 }
 
 interface AvatarInputProps {
@@ -189,6 +190,11 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
                     this.handleFlood(x, y);
                     return;
                 }
+
+                case Tool.Clear: {
+                    this.clearImage();
+                    return;
+                }
             }
 
             if (this.lastDrawX == x && this.lastDrawY == y) {
@@ -218,8 +224,9 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
                 }
 
                 case Tool.Flood:
+                case Tool.Clear:
                 default: {
-                    // Don't handle the flood case here
+                    // Don't handle the flood or clear case here
                     return;
                 }
             }
@@ -290,6 +297,7 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
     render() {
         return <div className="avatar-input">
             <canvas
+                className={'avatar-tool-' + this.state.tool}
                 width={this.props.width}
                 height={this.props.height}
                 onPointerDown={this.canvasMouseDown}
@@ -347,10 +355,17 @@ export class AvatarInput extends React.Component<AvatarInputProps, AvatarInputSt
                                 onChange={() => this.setTool(Tool.Flood)} />
                             <label htmlFor="avatar-input-tool-select-flood">Fill</label>
                         </div>
+                        <div>
+                            <input
+                                type="radio"
+                                name="avatar-input-tool-select"
+                                id="avatar-input-tool-select-clear"
+                                checked={this.state.tool === Tool.Clear}
+                                onChange={() => this.setTool(Tool.Clear)} />
+                            <label htmlFor="avatar-input-tool-select-clear">Clear</label>
+                        </div>
                     </div>
                 </div>
-
-                <button className="avatar-input-reset" onClick={this.clearImage}>Clear</button>
             </div>
         </div >;
     }

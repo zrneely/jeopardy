@@ -1,4 +1,5 @@
 import React from 'react';
+import { JeopardyContext } from './common';
 
 interface ToolbarProps {
     playerName: string,
@@ -10,6 +11,9 @@ interface ToolbarState {
     dropdownOpen: boolean,
 }
 export class Toolbar extends React.Component<ToolbarProps, ToolbarState> {
+    declare context: React.ContextType<typeof JeopardyContext>;
+    static contextType = JeopardyContext;
+
     constructor(props: ToolbarProps) {
         super(props);
 
@@ -63,18 +67,34 @@ export class Toolbar extends React.Component<ToolbarProps, ToolbarState> {
     render() {
         let dropdown = null;
         if (this.state.dropdownOpen) {
+            let text;
+            if (this.props.isModerator) {
+                text = 'End Game';
+            } else if (this.context.joinInfo?.playerId === null) {
+                text = 'Stop Spectating';
+            } else {
+                text = 'Leave Game';
+            }
+
             dropdown = <div className="dropdown">
                 <ul>
                     <li onClick={this.handleLeaveGameClicked}>
-                        {this.props.isModerator ? 'End Game' : 'Leave Game'}
+                        {text}
                     </li>
                 </ul>
             </div>;
         }
 
+        let suffix = '';
+        if (this.props.isModerator) {
+            suffix = ' (Moderator)';
+        } else if (this.context.joinInfo?.playerId !== null) {
+            suffix = ' (Player)';
+        }
+
         return <div className="toolbar">
             <div className="player-name">
-                {this.props.playerName}{this.props.isModerator ? ' (Moderator)' : ' (Player)'}
+                {this.props.playerName + suffix}
             </div>
             <div className="dropdown-container" ref={this.dropdownContainer}>
                 <div className="dropdown-toggle" onClick={this.toggleDropdown}>&#8943;</div>

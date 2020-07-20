@@ -1,12 +1,15 @@
 import React from 'react';
 import autobahn from 'autobahn';
 
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+export const LS_KEY_CUR_GAME = "curGame";
+
 export function handleError(msg: string, error: any, clearData: boolean) {
     console.error(`${msg}: ${JSON.stringify(error)}`);
     alert(msg);
 
     if (clearData) {
-        localStorage.clear();
+        localStorage.removeItem(LS_KEY_CUR_GAME);
         location.reload();
     }
 }
@@ -85,11 +88,19 @@ export class JeopardyContextClass implements JeopardyContextType {
 
     withSession(callback: (session: autobahn.Session, argument: { [key: string]: string }) => void) {
         if (this.session !== null && this.joinInfo !== null) {
-            callback(this.session, {
-                game_id: this.joinInfo.gameId,
-                player_id: this.joinInfo.playerId,
-                auth: this.joinInfo.token,
-            });
+            if (this.joinInfo.token !== null) {
+                callback(this.session, {
+                    game_id: this.joinInfo.gameId,
+                    player_id: this.joinInfo.playerId!, // if token is non-null, so is player ID
+                    auth: this.joinInfo.token,
+                });
+            } else {
+                callback(this.session, {
+                    game_id: this.joinInfo.gameId,
+                    player_id: EMPTY_GUID,
+                    auth: EMPTY_GUID,
+                });
+            }
         } else {
             handleError('session closed', null, false);
         }
@@ -101,8 +112,8 @@ export const JeopardyContext = React.createContext<JeopardyContextType>(
 
 export interface GameJoinInfo {
     gameId: string,
-    playerId: string,
-    token: string,
+    playerId: string | null,
+    token: string | null,
     channel: string,
 }
 
@@ -128,7 +139,8 @@ export namespace ServerData {
     export interface OpenGame {
         game_id: string;
         moderator: string;  // name
-        players: [string];  // names
+        players: string[];  // names
+        channel: string,
     }
 
     export interface FinalJeopardyInfo {

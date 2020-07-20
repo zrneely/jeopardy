@@ -9,10 +9,16 @@ import ReactDOM from 'react-dom';
 
 import { Lobby } from './lobby';
 import { Game } from './game';
-import { GameJoinInfo, handleError, JeopardyContext, GlobalMetadata, JeopardyContextClass } from './common';
+import {
+  GameJoinInfo,
+  handleError,
+  JeopardyContext,
+  GlobalMetadata,
+  JeopardyContextClass,
+  LS_KEY_CUR_GAME
+} from './common';
 
 const WAMP_REALM = "jpdy";
-const LS_KEY_CUR_GAME = "curGame";
 
 interface JeopardyProps {
   routerUrlPromise: Promise<string>,
@@ -38,6 +44,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
     this.joinGame = this.joinGame.bind(this);
     this.makeGame = this.makeGame.bind(this);
+    this.spectateGame = this.spectateGame.bind(this);
     this.leaveGame = this.leaveGame.bind(this);
     this.gotMetadata = this.gotMetadata.bind(this);
   }
@@ -95,20 +102,34 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     }).then((result) => {
       console.log(`join result: ${JSON.stringify(result.kwargs)}`);
 
-      const game: GameJoinInfo = {
+      const joinInfo = {
         channel: result.kwargs['channel'],
         gameId: gameId,
         playerId: result.kwargs['player_id'],
         token: result.kwargs['token'],
       };
 
-      localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(game));
+      localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(joinInfo));
 
       this.setState({
-        joinInfo: game,
+        joinInfo,
       });
     }, (error) => {
       handleError('join game failed', error, true);
+    });
+  }
+
+  spectateGame(gameId: string, channel: string) {
+    const joinInfo = {
+      channel,
+      gameId,
+      playerId: null,
+      token: null,
+    };
+    localStorage.setItem(LS_KEY_CUR_GAME, JSON.stringify(joinInfo));
+
+    this.setState({
+      joinInfo,
     });
   }
 
@@ -166,6 +187,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
         session={this.state.session}
         makeGameCallback={this.makeGame}
         joinGameCallback={this.joinGame}
+        spectateGameCallback={this.spectateGame}
         gotGlobalMetadataCallback={this.gotMetadata} />;
     } else {
       // We're in a game

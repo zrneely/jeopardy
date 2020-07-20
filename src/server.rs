@@ -178,6 +178,17 @@ pub async fn leave_game(
         }
     }
 
+    // Update the game lobby
+    MSG_QUEUE
+        .get()
+        .unwrap()
+        .send(Message {
+            topic: GAME_LOBBY_CHANNEL.into(),
+            args: None,
+            kwargs: Some(STATE.get_games()?),
+        })
+        .unwrap();
+
     STATE.broadcast_game_state_update(&game_id).await?;
     Ok((None, None))
 }
@@ -210,8 +221,7 @@ pub async fn get_game_state(
 
     match game.auth_and_get_player_type(&player_id, &auth) {
         Some(PlayerType::Moderator) => Ok((None, Some(game.serialize(true)))),
-        Some(PlayerType::Player) => Ok((None, Some(game.serialize(false)))),
-        None => Err(Error::NoSuchPlayer.into()),
+        Some(PlayerType::Player) | None => Ok((None, Some(game.serialize(false)))),
     }
 }
 

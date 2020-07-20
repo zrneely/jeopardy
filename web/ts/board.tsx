@@ -112,16 +112,18 @@ export class Board extends React.PureComponent<BoardProps, BoardState> {
     }
 
     handleSquareClicked(category: number, row: number) {
-        this.context.withSession((session, argument) => {
-            argument['category'] = category.toString();
-            argument['row'] = row.toString();
+        if (this.props.isModerator) {
+            this.context.withSession((session, argument) => {
+                argument['category'] = category.toString();
+                argument['row'] = row.toString();
 
-            session.call('jpdy.select_square', [], argument).then(() => {
-                console.log('select square call succeededd!');
-            }, (error) => {
-                handleError('select square call failed', error, false);
+                session.call('jpdy.select_square', [], argument).then(() => {
+                    console.log('select square call succeededd!');
+                }, (error) => {
+                    handleError('select square call failed', error, false);
+                });
             });
-        });
+        }
     }
 
     handleDailyDoubleWagerChange(e: ChangeEvent<HTMLInputElement>) {

@@ -1,8 +1,11 @@
+@use 'common';
+
 #lobby-container {
-    width: 100%;
-    height: 100%;
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    padding: 10px;
 }
 
 #open-games {
@@ -26,25 +29,140 @@
     list-style: none;
     padding-left: 0px;
     margin-top: 5px;
+    margin-left: 5%;
+    margin-right: 5%;
 
     & > li:not(:first-child) {
         margin-top: 10px;
     }
 
+    flex-wrap: wrap;
     overflow-y: auto;
+}
+
+.make-game {
+    @include common.default-button;
+
+    display: flex;
+    flex-direction: row;
+
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid black;
+    border-radius: 3px;
+
+    // max-width: 50%;
+    box-sizing: border-box;
+
+    &:hover {
+        background-color: common.$background-color-dark;
+    }
+}
+
+.game-to-join {
+    display: flex;
+    flex-direction: column;
+
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid black;
+    border-radius: 3px;
+
+    // max-width: 50%;
+    overflow-x: auto;
+    box-sizing: border-box;
+}
+
+.game-to-join-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    h5 {
+        margin-top: 0px;
+        margin-bottom: 5px;
+    }
+
+    button {
+        @include common.default-button;
+
+        padding-bottom: 2px;
+        margin: 2px;
+        border-radius: 3px;
+
+        &:hover {
+            background-color: common.$background-color-dark;
+        }
+    }
+}
+
+.game-to-join-body {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    padding-left: 10px;
+    padding-right: 10px;
+
+    h4 {
+        margin-top: 5px;
+        margin-bottom: 5px;
+        font-size: smaller;
+    }
+
+    ul {
+        flex: 1;
+        margin-left: 0px;
+        margin-bottom: 10px;
+        margin-top: 3px;
+        justify-content: unset;
+    }
 }
 
 #open-games-container label {
     padding-left: 10px;
 }
 
+.user-info-modal {
+    @include common.default-modal;
+
+    h4 {
+        margin: 0px;
+        padding-bottom: 5px;
+    }
+
+    input[type=text] {
+        width: 100%;
+    }
+}
+
 .avatar-input {
     display: flex;
+
+    canvas {
+        border: 1px solid black;
+
+        &.avatar-tool-Thin {
+            cursor: crosshair;
+        }
+
+        &.avatar-tool-Thicc {
+            cursor: cell;
+        }
+
+        &.avatar-tool-Flood {
+            cursor: all-scroll;
+        }
+
+        &.avatar-tool-Clear {
+            cursor: not-allowed;
+        }
+    }
 }
 .avatar-input-panel {
     display: flex;
     flex-direction: row;
-    flex: 1;
     padding-left: 5px;
 }
 .avatar-color-buttons {
@@ -72,6 +190,7 @@
     flex: 3;
     display: flex;
     flex-direction: column;
+    margin-right: 10px;
 }
 .avatar-input-tool-select {
     flex: 3;
