@@ -143,21 +143,21 @@
     canvas {
         border: 1px solid black;
 
-        &.avatar-tool-Thin {
-            cursor: crosshair;
-        }
+        // &.avatar-tool-Thin {
+        //     cursor: crosshair;
+        // }
 
-        &.avatar-tool-Thicc {
-            cursor: cell;
-        }
+        // &.avatar-tool-Thicc {
+        //     cursor: cell;
+        // }
 
-        &.avatar-tool-Flood {
-            cursor: all-scroll;
-        }
+        // &.avatar-tool-Flood {
+        //     cursor: all-scroll;
+        // }
 
-        &.avatar-tool-Clear {
-            cursor: not-allowed;
-        }
+        // &.avatar-tool-Clear {
+        //     cursor: not-allowed;
+        // }
     }
 }
 .avatar-input-panel {
