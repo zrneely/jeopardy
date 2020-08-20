@@ -1,11 +1,13 @@
 ///<reference types="autobahn" />
 ///<reference types="react" />
 ///<reference types="react-dom" />
+///<reference types="react-ga" />
 ///<reference types="lodash.debounce" />
 
 import autobahn from 'autobahn';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import ReactGA from 'react-ga';
 
 import { Lobby } from './lobby';
 import { Game } from './game';
@@ -15,13 +17,14 @@ import {
   JeopardyContext,
   GlobalMetadata,
   JeopardyContextClass,
+  ConfigData,
   LS_KEY_CUR_GAME
 } from './common';
 
 const WAMP_REALM = "jpdy";
 
 interface JeopardyProps {
-  routerUrlPromise: Promise<string>,
+  configPromise: Promise<ConfigData>,
 }
 
 interface JeopardyState extends GlobalMetadata {
@@ -50,6 +53,8 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   }
 
   componentDidMount() {
+    const mountTime = Date.now();
+
     const existingGameData = localStorage.getItem(LS_KEY_CUR_GAME);
     if (existingGameData !== null) {
       this.setState({
@@ -57,25 +62,53 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       });
     }
 
-    this.props.routerUrlPromise.then((routerUrl) => {
+    this.props.configPromise.then((config) => {
       this.setState({
-        routerUrl,
+        routerUrl: config.routerUrl,
       });
 
+      if (config.gaIdentifier !== undefined) {
+        let debug = false;
+        if (config.debug !== undefined) {
+          debug = true;
+        }
+
+        let gaSampleRate = 100;
+        if (config.gaSampleRate !== undefined) {
+          gaSampleRate = config.gaSampleRate;
+        }
+
+        ReactGA.initialize(config.gaIdentifier, {
+          debug,
+          titleCase: false,
+          gaOptions: {
+            siteSpeedSampleRate: gaSampleRate,
+            allowAnchor: false,
+            storage: 'none'
+          }
+        });
+      }
+
       this.connection = new autobahn.Connection({
-        url: routerUrl,
+        url: config.routerUrl,
         realm: WAMP_REALM,
         max_retries: 3,
         max_retry_delay: 15, // seconds
       });
 
       this.connection.onopen = (session) => {
+        const connectionOpenTime = Date.now();
         console.log('WAMP connection open!');
 
         this.setState({
           session: session,
         });
-      }
+
+        ReactGA.event({
+          category: 'Navigation',
+          action: 'Connected to server',
+        });
+      };
 
       this.connection.open();
     });
@@ -94,12 +127,14 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       return;
     }
 
+    const callTime = Date.now();
     console.log(`joining game ${gameId}`);
     this.state.session.call<autobahn.Result>('jpdy.join', [], {
       player_name: playerName,
       game_id: gameId,
       avatar,
     }).then((result) => {
+      const responseTime = Date.now();
       console.log(`join result: ${JSON.stringify(result.kwargs)}`);
 
       const joinInfo = {
@@ -113,6 +148,11 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
       this.setState({
         joinInfo,
+      });
+
+      ReactGA.event({
+        category: 'Navigation',
+        action: 'Joined a game',
       });
     }, (error) => {
       handleError('join game failed', error, true);
@@ -131,12 +171,23 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
     this.setState({
       joinInfo,
     });
+
+    ReactGA.event({
+      category: 'Navigation',
+      action: 'Spectated a game',
+    });
   }
 
   leaveGame() {
     localStorage.removeItem(LS_KEY_CUR_GAME);
+
     this.setState({
       joinInfo: null,
+    });
+
+    ReactGA.event({
+      category: 'Navigation',
+      action: 'Left a game',
     });
   }
 
@@ -146,10 +197,12 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       return;
     }
 
+    const callTime = Date.now();
     this.state.session.call<autobahn.Result>('jpdy.new_game', [], {
       player_name: playerName,
       avatar,
     }).then((result) => {
+      const responseTime = Date.now();
       console.log(`new_game result: ${JSON.stringify(result.kwargs)}`);
 
       const game: GameJoinInfo = {
@@ -163,6 +216,11 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
 
       this.setState({
         joinInfo: game,
+      });
+
+      ReactGA.event({
+        category: 'Navigation',
+        action: 'Created a game',
       });
     }, (error) => {
       handleError('new game creation failed', error, true);
@@ -193,7 +251,7 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
       // We're in a game
       component = <Game
         leaveGameCallback={this.leaveGame}
-        gotGlobalMetadataCallback={this.gotMetadata} />
+        gotGlobalMetadataCallback={this.gotMetadata} />;
     }
 
     return <JeopardyContext.Provider value={new JeopardyContextClass(
@@ -205,10 +263,9 @@ class Jeopardy extends React.Component<JeopardyProps, JeopardyState> {
   }
 }
 
-const routerUrlPromise: Promise<string> = fetch('config.json')
-  .then(resp => resp.json())
-  .then(data => data['routerUrl']);
+const configPromise: Promise<ConfigData> = fetch('config.json')
+  .then(resp => resp.json());
 ReactDOM.render(
-  <Jeopardy routerUrlPromise={routerUrlPromise} />,
+  <Jeopardy configPromise={configPromise} />,
   document.querySelector('#root')
 );

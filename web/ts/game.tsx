@@ -1,5 +1,6 @@
 import autobahn from 'autobahn';
 import React from 'react';
+
 import { ServerData, handleError, Activity, JeopardyContext, EventNames } from './common';
 import { Board } from './board';
 import { ModeratorControls } from './moderatorControls';
@@ -12,7 +13,7 @@ interface GameState {
     isModerator: boolean,
     currentActivity: Activity,
     board: ServerData.Board,
-    players: { [player_id: string]: ServerData.Player },
+    players: { [player_id: string]: ServerData.Player; },
     controllerId: string | null,
     activePlayerId: string | null,
     moderatorName: string | null,

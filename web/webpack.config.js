@@ -14,7 +14,7 @@ module.exports = {
         ],
     },
     resolve: {
-        extensions: ['.tsx', '.jsx', '.ts', '.js'],
+        extensions: ['.ts', '.tsx', '.js', '.jsx'],
         alias: {
             autobahn: path.resolve(__dirname, 'node_modules/autobahn-browser'),
         },

@@ -27,14 +27,14 @@ export interface GlobalMetadata {
 }
 
 export interface JeopardyContextType extends GlobalMetadata {
-    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string }) => void): void,
+    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string; }) => void): void,
     fireEvent(name: string): void,
     listenEvent(name: string, callback: () => void): number,
     unlistenEvent(name: string, id: number): void,
 }
 
 interface EventHandlerList {
-    map: { [id: string]: () => void },
+    map: { [id: string]: () => void; },
     nextId: number,
 }
 export class JeopardyContextClass implements JeopardyContextType {
@@ -43,7 +43,7 @@ export class JeopardyContextClass implements JeopardyContextType {
     minCategoryYear: number | null;
     maxCategoryYear: number | null;
 
-    eventHandlers: { [name: string]: EventHandlerList }
+    eventHandlers: { [name: string]: EventHandlerList; };
 
     constructor(
         session: autobahn.Session | null,
@@ -86,7 +86,7 @@ export class JeopardyContextClass implements JeopardyContextType {
         }
     }
 
-    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string }) => void) {
+    withSession(callback: (session: autobahn.Session, argument: { [key: string]: string; }) => void) {
         if (this.session !== null && this.joinInfo !== null) {
             if (this.joinInfo.token !== null) {
                 callback(this.session, {
@@ -159,7 +159,7 @@ export namespace ServerData {
 
     export interface GameStateUpdate {
         is_ended: boolean,
-        players: { [player_id: string]: Player },
+        players: { [player_id: string]: Player; },
         state: RemoteGameState,
         is_moderator: boolean,
         moderator: string, // name
@@ -274,4 +274,11 @@ export namespace ServerData {
         WaitingForBuzzer |
         WaitingForAnswer |
         FinalJeopardy;
+}
+
+export interface ConfigData {
+    routerUrl: string,
+    gaIdentifier: string | undefined,
+    gaSampleRate: number | undefined,
+    debug: boolean | undefined,
 }

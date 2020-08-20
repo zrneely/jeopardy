@@ -5,6 +5,7 @@
         "module": "es6",
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
+        "moduleResolution": "node",
         "noEmitOnError": true,
         "noImplicitReturns": true,
         "noImplicitAny": true,
@@ -16,6 +17,6 @@
         "jsx": "react"
     },
     "files": [
-        "./ts/index.tsx",
-    ]
+        "./ts/index.tsx"
+    ],
 }

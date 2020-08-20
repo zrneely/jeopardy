@@ -191,7 +191,7 @@ export class Lobby extends React.Component<LobbyProps, LobbyState> {
 
         return <ul>
             {elements}
-        </ul>
+        </ul>;
     }
 
     render() {
