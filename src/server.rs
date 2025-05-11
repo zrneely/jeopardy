@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use log::*;
-use wamp_async::{Arg, WampArgs, WampError, WampKwArgs};
+use wamp_async::{WampArgs, WampError, WampKwArgs, WampPayloadValue};
 
 use crate::{
     errors::Error,
@@ -14,24 +12,26 @@ use crate::{
     OPERATION_TIMEOUT, STATE,
 };
 
-fn get_str_parse<T: std::str::FromStr>(arg: &Arg) -> Result<T, Error> {
+fn get_str_parse<T: std::str::FromStr>(arg: &WampPayloadValue) -> Result<T, Error> {
     let string = get_str(arg)?;
     string.parse().map_err(|_| Error::BadArgument)
 }
 
-fn get_str(arg: &Arg) -> Result<&str, Error> {
+fn get_str(arg: &WampPayloadValue) -> Result<&str, Error> {
     match arg {
-        Arg::Uri(ref string) | Arg::String(ref string) => Ok(string),
+        WampPayloadValue::String(ref string) => Ok(string),
         _ => Err(Error::BadArgument),
     }
 }
 
-fn get_uuid(arg: &Arg) -> Result<uuid::Uuid, Error> {
+fn get_uuid(arg: &WampPayloadValue) -> Result<uuid::Uuid, Error> {
     let string = get_str(arg)?;
     uuid::Uuid::parse_str(string).map_err(|_| Error::BadArgument)
 }
 
-fn get_common_args(kwargs: &HashMap<String, Arg>) -> Result<(GameId, PlayerId, AuthToken), Error> {
+fn get_common_args(
+    kwargs: &wamp_async::WampKwArgs,
+) -> Result<(GameId, PlayerId, AuthToken), Error> {
     Ok((
         GameId(get_uuid(kwargs.get("game_id").ok_or(Error::BadArgument)?)?),
         PlayerId(get_uuid(
@@ -43,9 +43,9 @@ fn get_common_args(kwargs: &HashMap<String, Arg>) -> Result<(GameId, PlayerId, A
 
 /// Create a new game and add it to the state.
 pub async fn make_game(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("make_game");
 
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
@@ -61,7 +61,7 @@ pub async fn make_game(
 
     trace!(
         "Creating game {} with moderator named {} (assigned mod channel: {:?})",
-        game_id.0.to_hyphenated(),
+        game_id.0.hyphenated(),
         player_name,
         moderator_channel
     );
@@ -89,9 +89,9 @@ pub async fn make_game(
 
 /// Join an existing game.
 pub async fn join_game(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     debug!("join_game");
 
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
@@ -147,10 +147,11 @@ pub async fn join_game(
 }
 
 pub async fn leave_game(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     debug!("leave_game");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let target = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
@@ -194,17 +195,21 @@ pub async fn leave_game(
 }
 
 /// Get the list of open games.
-pub async fn get_games(_: WampArgs, _: WampKwArgs) -> Result<(WampArgs, WampKwArgs), WampError> {
+pub async fn get_games(
+    _: Option<WampArgs>,
+    _: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("get_games");
     Ok((None, Some(STATE.get_games()?)))
 }
 
 /// Get the state for one game.
 pub async fn get_game_state(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     debug!("get_game_data");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
 
@@ -227,10 +232,11 @@ pub async fn get_game_state(
 
 /// Moderator only: end a game
 pub async fn end_game(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("end_game");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
 
@@ -266,15 +272,17 @@ pub async fn end_game(
             kwargs: Some(STATE.get_games()?),
         })
         .unwrap();
+
     Ok((None, None))
 }
 
 /// Moderator only: select a square
 pub async fn select_square(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("select_square");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let category: usize = get_str_parse(kwargs.get("category").ok_or(Error::BadArgument)?)?;
@@ -308,8 +316,12 @@ pub async fn select_square(
 }
 
 /// Moderator only: a player gave an answer (outside of the game)
-pub async fn answer(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKwArgs), WampError> {
+pub async fn answer(
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("answer");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let answer: AnswerType = get_str_parse(kwargs.get("answer").ok_or(Error::BadArgument)?)?;
@@ -342,17 +354,18 @@ pub async fn answer(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKw
 
 /// Moderator only: change to a fresh board
 pub async fn new_board(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("new_board");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let multiplier: i64 = get_str_parse(kwargs.get("multiplier").ok_or(Error::BadArgument)?)?;
     let daily_doubles: usize =
         get_str_parse(kwargs.get("daily_doubles").ok_or(Error::BadArgument)?)?;
     let categories: usize = get_str_parse(kwargs.get("categories").ok_or(Error::BadArgument)?)?;
-    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
+    let seed: Seed = if let Some(WampPayloadValue::String(arg)) = kwargs.get("seed") {
         arg.parse().unwrap_or_else(|_| Seed::new_random())
     } else {
         Seed::new_random()
@@ -404,13 +417,14 @@ pub async fn new_board(
 
 /// Moderator only: start final jeopardy
 pub async fn start_final_jeopardy(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("start_final_jeopardy");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
-    let seed: Seed = if let Some(Arg::Uri(arg)) = kwargs.get("seed") {
+    let seed: Seed = if let Some(WampPayloadValue::String(arg)) = kwargs.get("seed") {
         arg.parse().unwrap_or_else(|_| Seed::new_random())
     } else {
         Seed::new_random()
@@ -446,10 +460,11 @@ pub async fn start_final_jeopardy(
 
 /// Moderator only: reveal the final jeopardy question
 pub async fn reveal_final_jeopardy_question(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("reveal_final_jeopardy_question");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
 
@@ -481,10 +496,11 @@ pub async fn reveal_final_jeopardy_question(
 
 /// Moderator only: lock final jeopardy answers
 pub async fn lock_final_jeopardy_answers(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("lock_final_jeopardy_answers");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
 
@@ -516,10 +532,11 @@ pub async fn lock_final_jeopardy_answers(
 
 /// Moderator only: reveal a player's final jeopardy info
 pub async fn reveal_final_jeopardy_info(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("reveal_final_jeopardy_info");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let target_id: PlayerId = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
@@ -554,10 +571,11 @@ pub async fn reveal_final_jeopardy_info(
 
 /// Moderator only: evaluate a player's final jeopardy answer
 pub async fn evaluate_final_jeopardy_answer(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("reveal_final_jeopardy_info");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let target_id: PlayerId = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
@@ -591,10 +609,11 @@ pub async fn evaluate_final_jeopardy_answer(
 
 /// Moderator only: change a square's state
 pub async fn change_square_state(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("change_square_state");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let category: usize = get_str_parse(kwargs.get("category").ok_or(Error::BadArgument)?)?;
@@ -638,10 +657,11 @@ pub async fn change_square_state(
 
 /// Moderator only: change a player's score
 pub async fn change_player_score(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("change_player_score");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let target = PlayerId(get_uuid(kwargs.get("target").ok_or(Error::BadArgument)?)?);
@@ -675,9 +695,9 @@ pub async fn change_player_score(
 
 /// Moderator only: enable the buzzer after selecting a square
 pub async fn enable_buzzer(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("enable_buzzer");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
@@ -709,7 +729,10 @@ pub async fn enable_buzzer(
 }
 
 /// Player only: a player gave an answer (outside of the game)
-pub async fn buzz(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKwArgs), WampError> {
+pub async fn buzz(
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("buzz");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
@@ -742,9 +765,9 @@ pub async fn buzz(_: WampArgs, kwargs: WampKwArgs) -> Result<(WampArgs, WampKwAr
 
 /// Player only: a player submitted a wager
 pub async fn submit_wager(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("submit_wager");
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
@@ -777,10 +800,11 @@ pub async fn submit_wager(
 }
 
 pub async fn submit_final_jeopardy_answer(
-    _: WampArgs,
-    kwargs: WampKwArgs,
-) -> Result<(WampArgs, WampKwArgs), WampError> {
+    _: Option<WampArgs>,
+    kwargs: Option<WampKwArgs>,
+) -> Result<(Option<WampArgs>, Option<WampKwArgs>), WampError> {
     info!("submit_final_jeopardy_answer");
+
     let kwargs = kwargs.ok_or(Error::BadArgument)?;
     let (game_id, player_id, auth) = get_common_args(&kwargs)?;
     let answer: &str = get_str(kwargs.get("answer").ok_or(Error::BadArgument)?)?;

@@ -1,13 +1,10 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use log::*;
-use rand::{
-    seq::{IteratorRandom, SliceRandom},
-    Rng,
-};
+use rand::{seq::IteratorRandom, Rng};
 use uuid::Uuid;
-use wamp_async::{Arg, WampDict};
+use wamp_async::{WampKwArgs, WampPayloadValue};
 
 use crate::{
     data::FinalJeopardyQuestion, errors::Error, seed::Seed, AuthToken, PlayerId, JEOPARDY_DATA,
@@ -79,23 +76,32 @@ impl Player {
         self.auth == *auth
     }
 
-    fn serialize(&self, for_moderator: bool) -> WampDict {
-        let mut result = WampDict::new();
-        result.insert("name".into(), Arg::String(self.name.clone()));
-        result.insert("score".into(), Arg::String(self.score.to_string()));
-        result.insert("avatar_url".into(), Arg::String(self.avatar_url.clone()));
+    fn serialize(&self, for_moderator: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
+        result.insert("name".into(), WampPayloadValue::String(self.name.clone()));
+        result.insert(
+            "score".into(),
+            WampPayloadValue::String(self.score.to_string()),
+        );
+        result.insert(
+            "avatar_url".into(),
+            WampPayloadValue::String(self.avatar_url.clone()),
+        );
 
         result.insert(
             "final_jeopardy_info".into(),
-            Arg::Dict({
-                let mut player_result = HashMap::new();
+            WampPayloadValue::Object({
+                let mut player_result = WampKwArgs::default();
                 if self.final_jeopardy_info.wager_revealed || for_moderator {
                     match self.final_jeopardy_info.wager {
                         Some(ref wager) => {
-                            player_result.insert("wager".into(), Arg::String(wager.to_string()));
+                            player_result.insert(
+                                "wager".into(),
+                                WampPayloadValue::String(wager.to_string()),
+                            );
                         }
                         None => {
-                            player_result.insert("wager".into(), Arg::None);
+                            player_result.insert("wager".into(), WampPayloadValue::Null);
                         }
                     }
                 }
@@ -103,10 +109,11 @@ impl Player {
                 if self.final_jeopardy_info.answer_revealed || for_moderator {
                     match self.final_jeopardy_info.answer {
                         Some(ref answer) => {
-                            player_result.insert("answer".into(), Arg::String(answer.clone()));
+                            player_result
+                                .insert("answer".into(), WampPayloadValue::String(answer.clone()));
                         }
                         None => {
-                            player_result.insert("answer".into(), Arg::None);
+                            player_result.insert("answer".into(), WampPayloadValue::Null);
                         }
                     }
                 }
@@ -114,11 +121,11 @@ impl Player {
                 if for_moderator {
                     player_result.insert(
                         "wager_revealed".into(),
-                        Arg::Bool(self.final_jeopardy_info.wager_revealed),
+                        WampPayloadValue::Bool(self.final_jeopardy_info.wager_revealed),
                     );
                     player_result.insert(
                         "answer_revealed".into(),
-                        Arg::Bool(self.final_jeopardy_info.answer_revealed),
+                        WampPayloadValue::Bool(self.final_jeopardy_info.answer_revealed),
                     );
                 }
 
@@ -189,7 +196,7 @@ enum GameState {
 impl GameState {
     fn serialize_helper(
         &self,
-        result: &mut WampDict,
+        result: &mut WampKwArgs,
         board: &JeopardyBoard,
         controller: Option<&PlayerId>,
         for_moderator: bool,
@@ -197,37 +204,43 @@ impl GameState {
         let daily_double_entered = !matches!(self, GameState::WaitingForDailyDoubleWager { .. });
         result.insert(
             "board".into(),
-            Arg::Dict(board.serialize(for_moderator, daily_double_entered)),
+            WampPayloadValue::Object(board.serialize(for_moderator, daily_double_entered)),
         );
         if let Some(player_id) = controller {
-            result.insert("controller".into(), Arg::String(player_id.to_string()));
+            result.insert(
+                "controller".into(),
+                WampPayloadValue::String(player_id.to_string()),
+            );
         }
     }
 
     fn serialize_helper2(
         &self,
-        result: &mut WampDict,
+        result: &mut WampKwArgs,
         board: &JeopardyBoard,
         controller: Option<&PlayerId>,
         location: &Location,
         for_moderator: bool,
     ) {
         self.serialize_helper(result, board, controller, for_moderator);
-        result.insert("location".into(), Arg::Dict(location.serialize()));
+        result.insert(
+            "location".into(),
+            WampPayloadValue::Object(location.serialize()),
+        );
     }
 
-    fn serialize(&self, for_moderator: bool) -> WampDict {
-        let mut result = WampDict::new();
+    fn serialize(&self, for_moderator: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
 
         match self {
             GameState::NoBoard => {
-                result.insert("type".into(), Arg::String("NoBoard".into()));
+                result.insert("type".into(), WampPayloadValue::String("NoBoard".into()));
             }
 
             GameState::WaitingForSquareSelection { board, controller } => {
                 result.insert(
                     "type".into(),
-                    Arg::String("WaitingForSquareSelection".into()),
+                    WampPayloadValue::String("WaitingForSquareSelection".into()),
                 );
                 self.serialize_helper(&mut result, board, controller.as_ref(), for_moderator);
             }
@@ -235,7 +248,7 @@ impl GameState {
             GameState::WaitingForEnableBuzzer { board, controller, location } => {
                 result.insert(
                     "type".into(),
-                    Arg::String("WaitingForEnableBuzzer".into()),
+                    WampPayloadValue::String("WaitingForEnableBuzzer".into()),
                 );
                 self.serialize_helper2(
                     &mut result,
@@ -253,7 +266,7 @@ impl GameState {
             } => {
                 result.insert(
                     "type".into(),
-                    Arg::String("WaitingForDailyDoubleWager".into()),
+                    WampPayloadValue::String("WaitingForDailyDoubleWager".into()),
                 );
                 self.serialize_helper2(
                     &mut result,
@@ -271,7 +284,7 @@ impl GameState {
             } => {
                 result.insert(
                     "type".into(),
-                    Arg::String("WaitingForBuzzer".into()),
+                    WampPayloadValue::String("WaitingForBuzzer".into()),
                 );
                 self.serialize_helper2(
                     &mut result,
@@ -291,7 +304,7 @@ impl GameState {
             } => {
                 result.insert(
                     "type".into(),
-                    Arg::String("WaitingForAnswer".into()),
+                    WampPayloadValue::String("WaitingForAnswer".into()),
                 );
                 self.serialize_helper2(
                     &mut result,
@@ -302,7 +315,7 @@ impl GameState {
                 );
                 result.insert(
                     "active_player".into(),
-                    Arg::String(active_player.to_string()),
+                    WampPayloadValue::String(active_player.to_string()),
                 );
             }
 
@@ -314,18 +327,18 @@ impl GameState {
                 question_revealed,
                 answers_locked,
             } => {
-                result.insert("type".into(), Arg::String("FinalJeopardy".into()));
-                result.insert("category".into(), Arg::String(category_name.clone()));
-                result.insert("air_year".into(), Arg::Integer((*air_year).try_into().unwrap()));
-                result.insert("answers_locked".into(), Arg::Bool(*answers_locked));
-                result.insert("question_revealed".into(), Arg::Bool(*question_revealed));
+                result.insert("type".into(), WampPayloadValue::String("FinalJeopardy".into()));
+                result.insert("category".into(), WampPayloadValue::String(category_name.clone()));
+                result.insert("air_year".into(), WampPayloadValue::Number((*air_year).into()));
+                result.insert("answers_locked".into(), WampPayloadValue::Bool(*answers_locked));
+                result.insert("question_revealed".into(), WampPayloadValue::Bool(*question_revealed));
 
                 if *question_revealed || for_moderator {
-                    result.insert("question".into(), Arg::Dict(question.serialize()));
+                    result.insert("question".into(), WampPayloadValue::Object(question.serialize()));
                 }
 
                 if for_moderator {
-                    result.insert("answer".into(), Arg::String(answer.clone()));
+                    result.insert("answer".into(), WampPayloadValue::String(answer.clone()));
                 }
             }
         }
@@ -359,8 +372,8 @@ impl Game {
             next_board_id: 0,
 
             time_started: Utc::now(),
-            moderator_state_channel: format!("jpdy.chan.{}", Uuid::new_v4().to_hyphenated()),
-            player_state_channel: format!("jpdy.chan.{}", Uuid::new_v4().to_hyphenated()),
+            moderator_state_channel: format!("jpdy.chan.{}", Uuid::new_v4().hyphenated()),
+            player_state_channel: format!("jpdy.chan.{}", Uuid::new_v4().hyphenated()),
             is_ended: false,
         }
     }
@@ -391,24 +404,24 @@ impl Game {
 
     pub(crate) fn get_player_names(&self) -> Vec<&str> {
         self.players
-            .iter()
-            .map(|(_id, player)| player.name.as_str())
+            .values()
+            .map(|player| player.name.as_str())
             .collect()
     }
 
-    pub fn serialize(&self, for_moderator: bool) -> WampDict {
-        let mut result = WampDict::new();
+    pub fn serialize(&self, for_moderator: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
 
-        result.insert("is_ended".into(), Arg::Bool(self.is_ended));
+        result.insert("is_ended".into(), WampPayloadValue::Bool(self.is_ended));
         result.insert(
             "players".into(),
-            Arg::Dict(
+            WampPayloadValue::Object(
                 self.players
                     .iter()
                     .map(|(player_id, player)| {
                         (
                             player_id.to_string(),
-                            Arg::Dict(player.serialize(for_moderator)),
+                            WampPayloadValue::Object(player.serialize(for_moderator)),
                         )
                     })
                     .collect(),
@@ -417,18 +430,21 @@ impl Game {
 
         result.insert(
             "state".into(),
-            Arg::Dict(self.state.serialize(for_moderator)),
+            WampPayloadValue::Object(self.state.serialize(for_moderator)),
         );
 
-        result.insert("is_moderator".into(), Arg::Bool(for_moderator));
-        result.insert("moderator".into(), Arg::String(self.moderator.name.clone()));
+        result.insert("is_moderator".into(), WampPayloadValue::Bool(for_moderator));
+        result.insert(
+            "moderator".into(),
+            WampPayloadValue::String(self.moderator.name.clone()),
+        );
         result.insert(
             "min_year".into(),
-            Arg::Integer(JEOPARDY_DATA.get().unwrap().min_year.try_into().unwrap()),
+            WampPayloadValue::Number(JEOPARDY_DATA.get().unwrap().min_year.into()),
         );
         result.insert(
             "max_year".into(),
-            Arg::Integer(JEOPARDY_DATA.get().unwrap().max_year.try_into().unwrap()),
+            WampPayloadValue::Number(JEOPARDY_DATA.get().unwrap().max_year.into()),
         );
 
         result
@@ -740,7 +756,7 @@ impl Game {
     }
 
     fn get_random_player_with_lowest_score(&self) -> Option<PlayerId> {
-        let mut lowest_score = i64::max_value();
+        let mut lowest_score = i64::MAX;
         let mut group_with_lowest_score = Vec::with_capacity(self.players.len());
 
         for (player_id, player) in &self.players {
@@ -754,9 +770,7 @@ impl Game {
             }
         }
 
-        group_with_lowest_score
-            .choose(&mut rand::thread_rng())
-            .cloned()
+        group_with_lowest_score.into_iter().choose(&mut rand::rng())
     }
 
     fn make_random_board(
@@ -821,12 +835,12 @@ impl Game {
                 ref mut board,
                 controller: Some(controller),
             } => {
-                board.get_square_mut(&location).flip()?;
+                board.get_square_mut(location).flip()?;
 
                 // Move to new state
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
-                if new_board.get_square(&location).is_daily_double {
+                if new_board.get_square(location).is_daily_double {
                     GameState::WaitingForDailyDoubleWager {
                         board: new_board,
                         location: *location,
@@ -884,11 +898,11 @@ impl Game {
 
                 let cur_score = self
                     .players
-                    .get(&controller)
+                    .get(controller)
                     .ok_or(Error::NoSuchPlayer)?
                     .score;
                 let max_default_bid = MIN_MAX_DAILY_DOUBLE_WAGER_FACTOR * board.value_multiplier;
-                let max_bid = max_default_bid.max(cur_score.try_into().unwrap());
+                let max_bid = max_default_bid.max(cur_score);
                 if wager > max_bid {
                     return Err(Error::DailyDoubleWagerOutOfRange);
                 }
@@ -932,7 +946,7 @@ impl Game {
                 answers_locked: false,
                 ..
             } => {
-                if let Some(mut player) = self.players.get_mut(id) {
+                if let Some(player) = self.players.get_mut(id) {
                     player.final_jeopardy_info.answer = Some(answer.to_string());
                 } else {
                     warn!("Tried to submit final jeopardy answer for non-existant player");
@@ -980,7 +994,7 @@ impl Game {
     ) -> Result<(), Error> {
         match &mut self.state {
             GameState::FinalJeopardy { .. } => {
-                if let Some(mut player) = self.players.get_mut(player_id) {
+                if let Some(player) = self.players.get_mut(player_id) {
                     match info_type {
                         FinalJeopardyInfoType::Answer => {
                             player.final_jeopardy_info.answer_revealed = true;
@@ -1007,7 +1021,7 @@ impl Game {
     ) -> Result<(), Error> {
         match &self.state {
             GameState::FinalJeopardy { .. } => {
-                if let Some(mut player) = self.players.get_mut(player_id) {
+                if let Some(player) = self.players.get_mut(player_id) {
                     let wager = player.final_jeopardy_info.wager.unwrap_or(0);
 
                     match answer_type {
@@ -1041,7 +1055,7 @@ impl Game {
                     return Err(Error::NoSuchPlayer);
                 }
 
-                let value = board.get_square_value(&location);
+                let value = board.get_square_value(location);
 
                 let mut new_board = Box::new(DUMMY_BOARD);
                 std::mem::swap(&mut new_board, board);
@@ -1076,7 +1090,7 @@ impl Game {
             ) => {
                 let player = self
                     .players
-                    .get_mut(&active_player)
+                    .get_mut(active_player)
                     .ok_or(Error::NoSuchPlayer)?;
                 player.score += *value;
 
@@ -1104,7 +1118,7 @@ impl Game {
             ) => {
                 let player = self
                     .players
-                    .get_mut(&active_player)
+                    .get_mut(active_player)
                     .ok_or(Error::NoSuchPlayer)?;
                 player.score -= *value;
 

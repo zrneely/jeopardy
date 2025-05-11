@@ -82,10 +82,10 @@ pub fn load<P: AsRef<Path>>(path: P) -> JeopardyData {
     let mut occurrences = [0usize; 5];
 
     let (final_jeopardy, normal): (Vec<Row>, Vec<Row>) = results
-        .filter_map(|row| Some(row.unwrap()))
+        .map(|row| row.unwrap())
         .partition(|row| matches!(row.r#type, RowType::FinalJeopardy));
 
-    for (_key, group) in normal.iter().group_by(|row| row.cat_id.clone()).into_iter() {
+    for (_key, group) in normal.iter().chunk_by(|row| row.cat_id.clone()).into_iter() {
         let group: Vec<&Row> = group.collect();
         assert!(group.len() == 5);
 

@@ -1,15 +1,15 @@
 #[macro_export]
 macro_rules! wamp_dict {
     { } => {
-        ::std::collections::HashMap::new()
+        ::wamp_async::WampKwArgs::new()
     };
     { $( $name:expr => $val:expr , )* } => {
         {
-            let mut map = ::std::collections::HashMap::<String, _>::new();
+            let mut map = ::wamp_async::WampKwArgs::new();
             $(
                 map.insert(
                     $name.into(),
-                    ::wamp_async::Arg::String($val),
+                    ::wamp_async::WampPayloadValue::String($val),
                 );
             )*
             map

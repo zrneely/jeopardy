@@ -1,6 +1,4 @@
-use std::{
-    borrow::Cow, collections::HashMap, convert::TryInto, env, fmt, path::PathBuf, time::Duration,
-};
+use std::{borrow::Cow, collections::HashMap, env, fmt, path::PathBuf, time::Duration};
 
 use chrono::Utc;
 use futures::lock::Mutex;
@@ -9,7 +7,7 @@ use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use wamp_async::WampDict;
+use wamp_async::{WampKwArgs, WampPayloadValue};
 
 #[macro_use]
 mod util;
@@ -61,7 +59,7 @@ const MAX_AVATAR_SIZE: usize = 32 * 1024;
 pub struct GameId(Uuid);
 impl fmt::Display for GameId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.0.to_hyphenated())
+        write!(fmt, "{}", self.0.hyphenated())
     }
 }
 
@@ -70,7 +68,7 @@ impl fmt::Display for GameId {
 pub struct AuthToken(Uuid);
 impl fmt::Display for AuthToken {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.0.to_hyphenated())
+        write!(fmt, "{}", self.0.hyphenated())
     }
 }
 
@@ -79,7 +77,7 @@ impl fmt::Display for AuthToken {
 pub struct PlayerId(Uuid);
 impl fmt::Display for PlayerId {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.0.to_hyphenated())
+        write!(fmt, "{}", self.0.hyphenated())
     }
 }
 
@@ -87,8 +85,8 @@ impl fmt::Display for PlayerId {
 #[derive(Debug)]
 struct Message {
     topic: Cow<'static, str>,
-    args: wamp_async::WampArgs,
-    kwargs: wamp_async::WampKwArgs,
+    args: Option<wamp_async::WampArgs>,
+    kwargs: Option<wamp_async::WampKwArgs>,
 }
 
 struct JeopardyState {
@@ -134,9 +132,7 @@ impl JeopardyState {
 
     /// Gets the list of open games. Acquires the global game read lock, and each game's read lock
     /// as well.
-    pub fn get_games(&self) -> Result<WampDict, Error> {
-        use wamp_async::Arg;
-
+    pub fn get_games(&self) -> Result<WampKwArgs, Error> {
         let games = self
             .games
             .try_read_for(OPERATION_TIMEOUT)
@@ -153,28 +149,28 @@ impl JeopardyState {
                     "moderator_avatar" => game.get_moderator_avatar_url().into(),
                     "channel" => game.player_state_channel.clone(),
                 };
-                let players = Arg::List(
+                let players = WampPayloadValue::Array(
                     game.get_player_names()
                         .iter()
-                        .map(|name| Arg::String((*name).to_string()))
+                        .map(|name| WampPayloadValue::String((*name).to_string()))
                         .collect(),
                 );
                 dict.insert("players".to_string(), players);
 
-                Some(Arg::Dict(dict))
+                Some(WampPayloadValue::Object(dict))
             })
             .collect::<Vec<_>>();
 
-        let mut result = WampDict::new();
-        result.insert("games".to_string(), Arg::List(games));
+        let mut result = WampKwArgs::new();
+        result.insert("games".to_string(), WampPayloadValue::Array(games));
 
         result.insert(
             "min_year".to_string(),
-            Arg::Integer(JEOPARDY_DATA.get().unwrap().min_year.try_into().unwrap()),
+            WampPayloadValue::Number(JEOPARDY_DATA.get().unwrap().min_year.into()),
         );
         result.insert(
             "max_year".to_string(),
-            Arg::Integer(JEOPARDY_DATA.get().unwrap().max_year.try_into().unwrap()),
+            WampPayloadValue::Number(JEOPARDY_DATA.get().unwrap().max_year.into()),
         );
 
         Ok(result)
@@ -222,7 +218,7 @@ impl JeopardyState {
         };
 
         if is_ended {
-            self.remove_game(&game_id)?;
+            self.remove_game(game_id)?;
         }
 
         Ok(())
@@ -233,8 +229,10 @@ impl JeopardyState {
 async fn main() {
     env_logger::init();
 
-    let mut jeopardy_data = Default::default();
-    let time_taken = chrono::Duration::span(|| jeopardy_data = data::load(DATABASE_PATH));
+    let start = chrono::Utc::now();
+    let jeopardy_data = data::load(DATABASE_PATH);
+    let time_taken = chrono::Utc::now() - start;
+
     info!(
         "Loaded {} categories and {} final jeopardy questions in {} ms (min year: {}, max year: {})",
         jeopardy_data.categories.len(),
@@ -282,7 +280,7 @@ async fn main() {
     // Spawn the garbage collection task (it removes games started more than 24 hours ago).
     tokio::spawn(async move {
         loop {
-            tokio::time::delay_for(GC_INTERVAL).await;
+            tokio::time::sleep(GC_INTERVAL).await;
 
             info!("GC running...");
             let now = Utc::now();

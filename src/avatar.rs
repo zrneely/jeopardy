@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io::Write, path::PathBuf};
 
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
@@ -41,7 +41,7 @@ impl AvatarManager {
 
         avatar_data_url.decode(|data| {
             if bytes.len() + data.len() < self.max_image_size {
-                hasher.input(data);
+                hasher.write_all(data).unwrap();
                 bytes.extend_from_slice(data);
                 Ok(())
             } else {
@@ -50,7 +50,7 @@ impl AvatarManager {
             }
         })?;
 
-        let filename = format!("{:x}.{}", hasher.result(), ext);
+        let filename = format!("{:x}.{}", hasher.finalize(), ext);
         let path = self.directory.as_path().join(&filename);
 
         if !path.exists() {

@@ -16,7 +16,7 @@ impl Seed {
         use rand::Rng;
 
         Self {
-            value: rand::thread_rng().gen(),
+            value: rand::rng().random(),
         }
     }
 
@@ -86,9 +86,9 @@ mod seed_tests {
 
         for _ in 0..1_000_000 {
             let seed = Seed {
-                value: rand::thread_rng().gen(),
+                value: rand::rng().random(),
             };
-            println!("value: {} seed: {}", seed.value, seed.to_string());
+            println!("value: {} seed: {}", seed.value, seed);
             let returned_seed: Seed = seed.to_string().parse().unwrap();
             assert_eq!(seed.value, returned_seed.value);
         }

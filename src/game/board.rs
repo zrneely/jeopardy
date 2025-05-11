@@ -1,7 +1,7 @@
 use std::{convert::TryInto, fmt};
 
 use rand::Rng;
-use wamp_async::{Arg, WampDict};
+use wamp_async::{WampKwArgs, WampPayloadValue};
 
 use crate::{errors::Error, seed::Seed};
 
@@ -51,7 +51,7 @@ impl Location {
         }
 
         let mut new_item = |data: usize, weight: f64| {
-            let u: f64 = rng.gen();
+            let u: f64 = rng.random();
             Item {
                 data,
                 weight,
@@ -86,10 +86,13 @@ impl Location {
         )
     }
 
-    pub fn serialize(&self) -> WampDict {
-        let mut result = WampDict::new();
-        result.insert("category".into(), Arg::Integer(self.category));
-        result.insert("row".into(), Arg::Integer(self.row));
+    pub fn serialize(&self) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
+        result.insert(
+            "category".into(),
+            WampPayloadValue::Number(self.category.into()),
+        );
+        result.insert("row".into(), WampPayloadValue::Number(self.row.into()));
         result
     }
 }
@@ -135,24 +138,29 @@ impl JeopardyBoard {
         self.value_multiplier * (1 + (location.row as i64))
     }
 
-    pub fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
-        let mut result = WampDict::new();
+    pub fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
 
         result.insert(
             "value_multiplier".into(),
-            Arg::String(self.value_multiplier.to_string()),
+            WampPayloadValue::String(self.value_multiplier.to_string()),
         );
 
-        result.insert("etag".into(), Arg::Integer(self.etag));
-        result.insert("id".into(), Arg::Integer(self.id));
-        result.insert("seed".into(), Arg::String(self.seed.to_string()));
+        result.insert("etag".into(), WampPayloadValue::Number(self.etag.into()));
+        result.insert("id".into(), WampPayloadValue::Number(self.id.into()));
+        result.insert(
+            "seed".into(),
+            WampPayloadValue::String(self.seed.to_string()),
+        );
 
         result.insert(
             "categories".into(),
-            Arg::List(
+            WampPayloadValue::Array(
                 self.categories
                     .iter()
-                    .map(|cat| Arg::Dict(cat.serialize(for_moderator, daily_double_entered)))
+                    .map(|cat| {
+                        WampPayloadValue::Object(cat.serialize(for_moderator, daily_double_entered))
+                    })
                     .collect(),
             ),
         );
@@ -169,25 +177,32 @@ pub struct Category {
     pub squares: [Square; CATEGORY_HEIGHT],
 }
 impl Category {
-    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
-        let mut result = WampDict::new();
+    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
 
-        result.insert("title".into(), Arg::String(self.title.clone()));
+        result.insert("title".into(), WampPayloadValue::String(self.title.clone()));
         result.insert(
             "air_year".into(),
-            Arg::Integer(self.air_year.try_into().unwrap()),
+            WampPayloadValue::Number(self.air_year.into()),
         );
 
         if let Some(ref commentary) = self.commentary {
-            result.insert("commentary".into(), Arg::String(commentary.clone()));
+            result.insert(
+                "commentary".into(),
+                WampPayloadValue::String(commentary.clone()),
+            );
         }
 
         result.insert(
             "squares".into(),
-            Arg::List(
+            WampPayloadValue::Array(
                 self.squares
                     .iter()
-                    .map(|square| Arg::Dict(square.serialize(for_moderator, daily_double_entered)))
+                    .map(|square| {
+                        WampPayloadValue::Object(
+                            square.serialize(for_moderator, daily_double_entered),
+                        )
+                    })
                     .collect(),
             ),
         );
@@ -213,23 +228,44 @@ impl Square {
         }
     }
 
-    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampDict {
-        let mut result = WampDict::new();
-        result.insert("state".into(), Arg::String(self.state.to_string()));
+    fn serialize(&self, for_moderator: bool, daily_double_entered: bool) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
+        result.insert(
+            "state".into(),
+            WampPayloadValue::String(self.state.to_string()),
+        );
 
         if for_moderator {
-            result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
-            result.insert("answer".into(), Arg::String(self.answer.clone()));
-            result.insert("is_daily_double".into(), Arg::Bool(self.is_daily_double));
+            result.insert(
+                "clue".into(),
+                WampPayloadValue::Object(self.clue.serialize()),
+            );
+            result.insert(
+                "answer".into(),
+                WampPayloadValue::String(self.answer.clone()),
+            );
+            result.insert(
+                "is_daily_double".into(),
+                WampPayloadValue::Bool(self.is_daily_double),
+            );
         } else {
             match (&self.state, daily_double_entered) {
                 (SquareState::Normal, _) | (SquareState::DailyDoubleRevealed, false) => {}
                 (SquareState::Flipped, _) | (SquareState::DailyDoubleRevealed, true) => {
-                    result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
+                    result.insert(
+                        "clue".into(),
+                        WampPayloadValue::Object(self.clue.serialize()),
+                    );
                 }
                 (SquareState::Finished, _) => {
-                    result.insert("clue".into(), Arg::Dict(self.clue.serialize()));
-                    result.insert("answer".into(), Arg::String(self.answer.clone()));
+                    result.insert(
+                        "clue".into(),
+                        WampPayloadValue::Object(self.clue.serialize()),
+                    );
+                    result.insert(
+                        "answer".into(),
+                        WampPayloadValue::String(self.answer.clone()),
+                    );
                 }
             }
         }
@@ -290,13 +326,13 @@ pub struct Clue {
     pub link: Option<String>,
 }
 impl Clue {
-    pub fn serialize(&self) -> WampDict {
-        let mut result = WampDict::new();
+    pub fn serialize(&self) -> WampKwArgs {
+        let mut result = WampKwArgs::new();
         if let Some(ref text) = self.text {
-            result.insert("text".into(), Arg::String(text.into()));
+            result.insert("text".into(), WampPayloadValue::String(text.into()));
         }
         if let Some(ref link) = self.link {
-            result.insert("link".into(), Arg::String(link.into()));
+            result.insert("link".into(), WampPayloadValue::String(link.into()));
         }
 
         result
